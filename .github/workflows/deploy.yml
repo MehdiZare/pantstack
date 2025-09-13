@@ -22,8 +22,8 @@ jobs:
           aws sts get-caller-identity
       - name: Build & publish image
         run: |
-          ./pants generate-lockfiles
-          ./pants package modules/${{ github.event.inputs.module }}:*image
+          pants generate-lockfiles
+          pants package modules/${{ github.event.inputs.module }}:*image
           # Retag and push to single ECR repo; tag: module-branch-sha
           export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
           export AWS_REGION=${{ vars.AWS_REGION }}

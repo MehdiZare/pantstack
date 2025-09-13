@@ -41,9 +41,9 @@ jobs:
       - name: Build & publish images
         if: steps.mods.outputs.mods != ''
         run: |
-          ./pants generate-lockfiles
+          pants generate-lockfiles
           for m in ${{ steps.mods.outputs.mods }}; do
-            ./pants package modules/$m:*image
+            pants package modules/$m:*image
           done
           export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
           export AWS_REGION=${{ vars.AWS_REGION }}

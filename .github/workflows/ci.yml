@@ -17,11 +17,11 @@ jobs:
             ./.pants.d
           key: pants-${{ runner.os }}-${{ hashFiles('**/*.BUILD','pants.toml','lockfiles/*.lock','**/requirements*.txt') }}
       - uses: pantsbuild/actions/init-pants@v10
-      - run: ./pants generate-lockfiles
-      - run: ./pants fmt "::"
+      - run: pants generate-lockfiles
+      - run: pants fmt "::"
       - run: pip install pre-commit
       - run: pre-commit run --all-files
-      - run: ./pants lint "::" && ./pants typecheck "::" && ./pants test "::"
+      - run: pants lint "::" && pants typecheck "::" && pants test "::"
   package:
     needs: build-test
     runs-on: ubuntu-latest
@@ -32,5 +32,5 @@ jobs:
       - uses: actions/setup-python@v6
         with: { python-version: '3.12' }
       - uses: pantsbuild/actions/init-pants@v10
-      - run: ./pants generate-lockfiles
-      - run: ./pants package modules/**:*image
+      - run: pants generate-lockfiles
+      - run: pants package modules/**:*image
