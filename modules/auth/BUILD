@@ -21,7 +21,7 @@ pex_binary(
 docker_image(
     name="auth_image",
     dependencies=[":auth_api_pex"],
-    version_tags=["latest"],
+    image_tags=["latest"],
 )
 
 python_tests(name="unit",        sources=["backend/tests/unit/**/*.py"],        resolve="tests", dependencies=[":auth_core"])

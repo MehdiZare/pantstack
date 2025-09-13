@@ -27,13 +27,13 @@ pex_binary(
 docker_image(
     name="api_image",
     dependencies=[":api_api_pex"],
-    version_tags=["latest"],
+    image_tags=["latest"],
 )
 
 docker_image(
     name="api_worker_image",
     dependencies=[":api_worker_pex"],
-    version_tags=["latest"],
+    image_tags=["latest"],
 )
 
 python_tests(name="unit", sources=["backend/tests/unit/**/*.py"], resolve="tests", dependencies=[":api_core"])
