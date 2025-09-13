@@ -117,18 +117,19 @@ docs-publish: ## Manually publish docs to GitHub Pages
 boot:   ## Install Pants build system
 	curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
 	@echo "Run: export PATH=\"\$$HOME/.local/bin:\$$PATH\" to add pants to your PATH"
+	@echo "You can also use the repo-local './pants' wrapper in all commands."
 
 fmt:    ## Format code
-	pants fmt ::
+	./pants fmt ::
 
 lint:   ## Lint and typecheck
-	pants lint :: && pants typecheck ::
+	./pants lint :: && ./pants typecheck ::
 
 test:   ## Run all tests
-	pants test ::
+	./pants test ::
 
 package: ## Build Docker images
-	pants package modules/**:*image
+	./pants package modules/**:*image
 
 up:     ## Start local stack
 	docker compose up -d --build
@@ -137,10 +138,10 @@ down:   ## Stop local stack
 	docker compose down -v
 
 mod:    ## Test and package a module (e.g., make mod M=api)
-	pants test modules/$(M)/:: && pants package modules/$(M):*image
+	./pants test modules/$(M)/:: && ./pants package modules/$(M):*image
 
 locks:  ## Generate Pants lockfiles
-	pants generate-lockfiles
+	./pants generate-lockfiles
 
 pre-commit-install: ## Install pre-commit hooks
 	pip install pre-commit && pre-commit install
@@ -166,7 +167,7 @@ create-project: ## Create new project from template
 	TEMPLATE_REPO=${TEMPLATE_REPO} GITHUB_OWNER=${GITHUB_OWNER} ./scripts/create_project_from_template.sh
 
 new-module: ## Scaffold new module (e.g., make new-module M=orders)
-	M=$(M) ./scripts/new_module.sh && pants generate-lockfiles
+	M=$(M) ./scripts/new_module.sh && ./pants generate-lockfiles
 
 stack-init: ## Initialize Pulumi stack (e.g., make stack-init M=api ENV=test)
 	cd modules/$(M)/infrastructure && pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV)

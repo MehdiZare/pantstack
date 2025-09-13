@@ -78,36 +78,56 @@ aws.s3.BucketLifecycleConfiguration(
 )
 
 
-# ECS Fargate API service (ALB)
-# Create a minimal VPC for the module to avoid relying on a default VPC.
-vpc = aws.ec2.Vpc(
-    "api-vpc",
-    cidr_block="10.99.0.0/16",
-    enable_dns_support=True,
-    enable_dns_hostnames=True,
-)
+"""
+VPC selection:
+- If env VPC_ID and SUBNET_IDS (comma-separated) are provided, reuse them.
+- Otherwise, create a minimal dedicated VPC for this module.
+"""
+shared_vpc_id = os.getenv("VPC_ID") or os.getenv("SHARED_VPC_ID")
+shared_subnet_ids = os.getenv("SUBNET_IDS") or os.getenv("SHARED_SUBNET_IDS")
 
-igw = aws.ec2.InternetGateway("api-igw", vpc_id=vpc.id)
-rt = aws.ec2.RouteTable(
-    "api-rt",
-    vpc_id=vpc.id,
-    routes=[aws.ec2.RouteTableRouteArgs(cidr_block="0.0.0.0/0", gateway_id=igw.id)],
-)
+subnet_ids: list[pulumi.Input[str]] | pulumi.Output[list[str]] = []
+if shared_vpc_id and shared_subnet_ids:
+    vpc_id: pulumi.Input[str] = shared_vpc_id
+    subnet_ids = [s.strip() for s in shared_subnet_ids.split(",") if s.strip()]
+elif os.getenv("PULUMI_ORG"):
+    # Attempt to reuse network from foundation stack
+    foundation_stack = (
+        os.getenv("FOUNDATION_STACK")
+        or f"{os.getenv('PULUMI_ORG')}/{PROJECT_SLUG}-foundation"
+    )
+    ref = pulumi.StackReference(foundation_stack)
+    vpc_id = ref.get_output("vpc_id")
+    subnet_ids = ref.get_output("public_subnet_ids")
+else:
+    vpc = aws.ec2.Vpc(
+        "api-vpc",
+        cidr_block="10.99.0.0/16",
+        enable_dns_support=True,
+        enable_dns_hostnames=True,
+    )
 
-azs = aws.get_availability_zones()
-subnet_ids: list[pulumi.Output[str]] = []
-for idx, az in enumerate(azs.names[:2]):
-    sn = aws.ec2.Subnet(
-        f"api-subnet-{idx}",
+    igw = aws.ec2.InternetGateway("api-igw", vpc_id=vpc.id)
+    rt = aws.ec2.RouteTable(
+        "api-rt",
         vpc_id=vpc.id,
-        cidr_block=f"10.99.{idx}.0/24",
-        map_public_ip_on_launch=True,
-        availability_zone=az,
+        routes=[aws.ec2.RouteTableRouteArgs(cidr_block="0.0.0.0/0", gateway_id=igw.id)],
     )
-    aws.ec2.RouteTableAssociation(
-        f"api-rta-{idx}", route_table_id=rt.id, subnet_id=sn.id
-    )
-    subnet_ids.append(sn.id)
+
+    azs = aws.get_availability_zones()
+    for idx, az in enumerate(azs.names[:2]):
+        sn = aws.ec2.Subnet(
+            f"api-subnet-{idx}",
+            vpc_id=vpc.id,
+            cidr_block=f"10.99.{idx}.0/24",
+            map_public_ip_on_launch=True,
+            availability_zone=az,
+        )
+        aws.ec2.RouteTableAssociation(
+            f"api-rta-{idx}", route_table_id=rt.id, subnet_id=sn.id
+        )
+        subnet_ids.append(sn.id)
+    vpc_id = vpc.id
 
 log_group_api = aws.cloudwatch.LogGroup("api-logs", retention_in_days=14)
 
@@ -161,7 +181,7 @@ api_task_def = aws.ecs.TaskDefinition(
     ),
 )
 
-lb_sg = aws.ec2.SecurityGroup("api-alb-sg", vpc_id=vpc.id)
+lb_sg = aws.ec2.SecurityGroup("api-alb-sg", vpc_id=vpc_id)
 aws.ec2.SecurityGroupRule(
     "api-alb-http",
     type="ingress",
@@ -181,7 +201,7 @@ aws.ec2.SecurityGroupRule(
     cidr_blocks=["0.0.0.0/0"],
 )
 
-svc_sg = aws.ec2.SecurityGroup("api-svc-sg", vpc_id=vpc.id)
+svc_sg = aws.ec2.SecurityGroup("api-svc-sg", vpc_id=vpc_id)
 aws.ec2.SecurityGroupRule(
     "api-svc-ingress",
     type="ingress",
@@ -207,7 +227,7 @@ tg = aws.lb.TargetGroup(
     port=8000,
     protocol="HTTP",
     target_type="ip",
-    vpc_id=vpc.id,
+    vpc_id=vpc_id,
     health_check=aws.lb.TargetGroupHealthCheckArgs(path="/healthz"),
 )
 lst = aws.lb.Listener(
@@ -286,7 +306,6 @@ aws.iam.RolePolicyAttachment(
     policy_arn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
 )
 
-cluster = aws.ecs.Cluster("api-cluster")
 
 task_def = aws.ecs.TaskDefinition(
     "api-worker-task",
@@ -306,7 +325,7 @@ task_def = aws.ecs.TaskDefinition(
     ),
 )
 
-sg = aws.ec2.SecurityGroup("api-worker-sg", vpc_id=vpc.id, description="api worker sg")
+sg = aws.ec2.SecurityGroup("api-worker-sg", vpc_id=vpc_id, description="api worker sg")
 
 svc = aws.ecs.Service(
     "api-worker-svc",

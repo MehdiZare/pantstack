@@ -11,13 +11,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     # Skip deployment in the template repository
-    if: github.repository != 'MehdiZare/pantstack'
+    if: ${{ github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     permissions: { contents: read }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: '3.12' }
-      - uses: pantsbuild/actions/setup-pants@v4
+      - uses: pantsbuild/actions/setup-pants@v10
       - name: Detect changed modules
         id: mods
         run: |
@@ -31,7 +31,7 @@ jobs:
         run: aws sts get-caller-identity
       - name: Version (semantic-release prerelease on dev)
         id: semver
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@v5
         with:
           extra_plugins: |
             @semantic-release/changelog

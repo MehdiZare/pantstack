@@ -10,7 +10,8 @@
       "Bash(python:*)",
       "Bash(yamllint:*)",
       "Bash(gh run view:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

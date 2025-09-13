@@ -21,13 +21,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # Only run in the template repository
-    if: github.repository == 'MehdiZare/pantstack'
+    if: ${{ github.repository == (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -40,7 +40,7 @@ jobs:
         run: mkdocs build --verbose --clean --strict
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v3  # Must transition to v4 by Jan 30, 2025
         with:
           path: ./site
 

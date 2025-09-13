@@ -12,9 +12,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     # Skip this check in the template repository
-    if: github.repository != 'MehdiZare/pantstack'
+    if: ${{ github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Verify required repo variables and secrets
         env:
           VAR_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}

@@ -16,10 +16,7 @@ PULUMI_ACCESS_TOKEN = os.getenv("PULUMI_ACCESS_TOKEN")
 
 
 # Configure providers from environment
-aws_provider = aws.Provider(
-    "aws",
-    region=AWS_REGION,
-)
+aws_provider = aws.Provider("aws", region=AWS_REGION)
 
 # If a PAT is present in env, the GitHub provider picks it up automatically
 # via GITHUB_TOKEN. Owner can be set per-resource.
@@ -61,7 +58,40 @@ default_branch = github.BranchDefault(
 )
 
 
-# 2) ECR repository (single per project). Image tags encode module and branch.
+# 2) Shared VPC (for all modules)
+vpc = aws.ec2.Vpc(
+    "foundation-vpc",
+    cidr_block="10.80.0.0/16",
+    enable_dns_support=True,
+    enable_dns_hostnames=True,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+igw = aws.ec2.InternetGateway("foundation-igw", vpc_id=vpc.id)
+rt = aws.ec2.RouteTable(
+    "foundation-rt-public",
+    vpc_id=vpc.id,
+    routes=[aws.ec2.RouteTableRouteArgs(cidr_block="0.0.0.0/0", gateway_id=igw.id)],
+)
+
+azs = aws.get_availability_zones()
+public_subnet_ids: list[pulumi.Output[str]] = []
+for idx, az in enumerate(azs.names[:2]):
+    sn = aws.ec2.Subnet(
+        f"foundation-public-{idx}",
+        vpc_id=vpc.id,
+        cidr_block=f"10.80.{idx}.0/24",
+        map_public_ip_on_launch=True,
+        availability_zone=az,
+        opts=pulumi.ResourceOptions(provider=aws_provider),
+    )
+    aws.ec2.RouteTableAssociation(
+        f"foundation-rta-public-{idx}", route_table_id=rt.id, subnet_id=sn.id
+    )
+    public_subnet_ids.append(sn.id)
+
+
+# 3) ECR repository (single per project). Image tags encode module and branch.
 ecr_repo = aws.ecr.Repository(
     "project-ecr",
     name=PROJECT_SLUG,
@@ -82,7 +112,7 @@ ecr_lifecycle = aws.ecr.LifecyclePolicy(
 )
 
 
-# 3) IAM user for CI/CD (GitHub Free; no OIDC). Minimal ECR push/pull policy now.
+# 4) IAM user for CI/CD (GitHub Free; no OIDC). Minimal ECR push/pull policy now.
 ci_user = aws.iam.User(
     "ci-user",
     name=f"{PROJECT_SLUG}-ci",
@@ -105,7 +135,7 @@ admin_attach = aws.iam.UserPolicyAttachment(
 )
 
 
-# 4) Set GitHub secrets and variables on the new repo
+# 5) Set GitHub secrets and variables on the new repo
 def repo_secret(name: str, value: pulumi.Input[str]):
     return github.ActionsSecret(
         f"secret-{name.lower()}",
@@ -134,6 +164,17 @@ _ = repo_var("AWS_ACCOUNT_ID", AWS_ACCOUNT_ID or "")
 _ = repo_var("PROJECT_SLUG", PROJECT_SLUG)
 _ = repo_var("ECR_REPOSITORY", ecr_repo.name)
 _ = repo_var("PULUMI_ORG", os.getenv("PULUMI_ORG", ""))
+_ = repo_var(
+    "FOUNDATION_STACK",
+    pulumi.Output.concat(
+        os.getenv("PULUMI_ORG", ""), "/", f"{PROJECT_SLUG}-foundation"
+    ),
+)
+
+# Export network details for modules to consume via StackReference
+pulumi.export("vpc_id", vpc.id)
+pulumi.export("public_subnet_ids", pulumi.Output.all(*public_subnet_ids))
+pulumi.export("vpc_cidr", vpc.cidr_block)
 
 
 # Useful outputs

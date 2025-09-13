@@ -117,6 +117,8 @@ make new-project  # Interactive prompts for all values
 - `make stack-verify M=api ENV=test` — E2E verify
 - `make gha-deploy M=api ENV=prod` — trigger deploy workflow
 
+Note: Pants is installed via the official bootstrap script. Local targets use `./pants`.
+
 ## Versioning & Promotion
 
 - Dev merges → prereleases (`1.2.0-dev.3`) + deploy to test
@@ -127,8 +129,17 @@ make new-project  # Interactive prompts for all values
 ## Architecture
 
 - See `modules/api` for a demo FastAPI + SQS worker and its Pulumi infra.
-- Foundation infra (template bootstrap): `platform/infra/foundation` via Pulumi.
+- Foundation infra: `platform/infra/foundation` now also provisions a shared VPC (two public subnets).
+  - Modules automatically reuse this VPC via Pulumi StackReference when `PULUMI_ORG` is set (CI and `make bootstrap` set this).
+  - You can override with env vars: `VPC_ID` and `SUBNET_IDS` (comma-separated).
 - Shared libs under `platform/libs/shared` and `platform/events`.
+
+## Template vs. Generated Projects
+
+- This repository is a template. CI jobs that build, package, deploy, or create preview stacks are disabled here by default.
+- Workflows use a guard: `${{ github.repository != (vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}`.
+  - In this template repo, keep `vars.TEMPLATE_REPO_SLUG` set to `MehdiZare/pantstack` (or rely on the fallback) so deploy jobs skip.
+  - In generated projects, do not set `TEMPLATE_REPO_SLUG`; deploy/preview workflows will run normally.
 
 ## First-time Checklist
 
