@@ -24,4 +24,3 @@ Use this quick checklist to initialize a new project from this template.
 - Day 2
   - Create feature module: `make gh-new-module-pr M=orders`
   - Promote via PR dev→main; verify preview plan; merge to deploy prod
-

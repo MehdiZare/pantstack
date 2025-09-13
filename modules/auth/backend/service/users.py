@@ -22,4 +22,3 @@ def get_user(user_id: int) -> User | None:
         True
     """
     return _FAKE_DB.get(user_id)
-

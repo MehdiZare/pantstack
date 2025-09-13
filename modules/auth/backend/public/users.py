@@ -1,5 +1,5 @@
-from modules.auth.backend.service.users import get_user
 from modules.auth.backend.schemas.user import UserPublic
+from modules.auth.backend.service.users import get_user
 
 
 def get_user_public(user_id: int) -> UserPublic | None:
@@ -12,4 +12,3 @@ def get_user_public(user_id: int) -> UserPublic | None:
     """
     u = get_user(user_id)
     return None if not u else UserPublic.model_validate(u.model_dump())
-

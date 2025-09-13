@@ -110,11 +110,7 @@ jobs:
               if [ -n "$albname" ]; then
                 echo "- AWS ALB: https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname"
               fi
-              enc=$(python3 - <<PYP
-import os,urllib.parse
-print(urllib.parse.quote(os.environ['QURL']))
-PYP
-)
+              enc=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['QURL']))")
               QURL="$qurl" echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"
               echo "- AWS S3: https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION"
             done

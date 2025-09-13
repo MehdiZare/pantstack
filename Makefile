@@ -89,14 +89,18 @@ template-setup: ## Complete template setup (init + labels + docs)
 	@echo "Setting up template repository..."
 	@$(MAKE) init-template
 	@echo ""
+	@echo "Installing pre-commit hooks..."
+	@$(MAKE) pre-commit-install
+	@echo ""
 	@echo "Creating release labels..."
 	@$(MAKE) seed-labels
 	@echo ""
 	@printf "\033[32m✅ Template setup complete!\033[0m\n"
 	@echo "Next steps:"
-	@echo "1. Push changes to dev branch"
-	@echo "2. Create PR from dev to main with version label"
-	@echo "3. Documentation will be published to GitHub Pages"
+	@echo "1. Run 'pre-commit run --all-files' to check formatting"
+	@echo "2. Push changes to dev branch"
+	@echo "3. Create PR from dev to main with version label"
+	@echo "4. Documentation will be published to GitHub Pages"
 
 docs-serve: ## Serve documentation locally
 	@./scripts/docs_serve.sh
@@ -142,6 +146,8 @@ pre-commit-install: ## Install pre-commit hooks
 	pip install pre-commit && pre-commit install
 
 bootstrap: ## Bootstrap foundation infrastructure (requires .env)
+	@echo "Installing pre-commit hooks..."
+	@$(MAKE) pre-commit-install
 	./scripts/bootstrap_foundation.sh
 
 seed-stacks: ## Initialize Pulumi stacks for all modules

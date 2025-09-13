@@ -50,7 +50,7 @@ declare -a LABELS=(
 # Create or update each label
 for label_def in "${LABELS[@]}"; do
   IFS='|' read -r name color description <<< "$label_def"
-  
+
   # Check if label exists
   if gh label list --repo "$REPO" | grep -q "^$name"; then
     echo -e "${COLOR_YELLOW}✓${COLOR_RESET} Label '$name' already exists"

@@ -65,4 +65,3 @@ The PR title linter allows these labels as an override.
 - Prefer squash merges so the final commit message matches the PR title.
 - Use `release:skip` for docs-only/infra-noop changes to avoid version bumps.
 - All version and deploy steps run only after tests and runtime verification pass.
-

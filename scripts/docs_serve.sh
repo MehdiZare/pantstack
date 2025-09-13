@@ -15,7 +15,7 @@ echo ""
 # Check if MkDocs is installed
 if ! command -v mkdocs >/dev/null 2>&1; then
   echo -e "${COLOR_YELLOW}MkDocs not found. Installing...${COLOR_RESET}"
-  
+
   # Try to install with pip
   if command -v pip >/dev/null 2>&1; then
     pip install --user mkdocs mkdocs-material mkdocs-mermaid2-plugin pymdown-extensions
@@ -25,11 +25,11 @@ if ! command -v mkdocs >/dev/null 2>&1; then
     echo -e "${COLOR_RED}Error: pip not found. Please install Python and pip first.${COLOR_RESET}"
     exit 1
   fi
-  
+
   echo -e "${COLOR_GREEN}✓ MkDocs installed${COLOR_RESET}"
 else
   echo -e "${COLOR_GREEN}✓ MkDocs found${COLOR_RESET}"
-  
+
   # Check for required plugins
   if ! pip show mkdocs-material >/dev/null 2>&1; then
     echo -e "${COLOR_YELLOW}Installing MkDocs Material theme...${COLOR_RESET}"

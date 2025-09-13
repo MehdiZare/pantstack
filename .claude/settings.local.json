@@ -5,7 +5,10 @@
       "Bash(python -m pip search:*)",
       "Bash(gh release list:*)",
       "Bash(chmod:*)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(python:*)",
+      "Bash(yamllint:*)"
     ],
     "deny": [],
     "ask": []

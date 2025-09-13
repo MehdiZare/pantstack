@@ -10,4 +10,3 @@ jobs:
         run: |
           echo "Direct pushes to main are not allowed. Use PR from dev." >&2
           exit 1
-

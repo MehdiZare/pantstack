@@ -27,4 +27,3 @@ Review and apply the proposed patch.
     ./scripts/new_module.sh M=orders
 
 This scaffolds `modules/orders` with backend (api/worker/service/schemas/public), infra, and BUILD targets.
-

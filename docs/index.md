@@ -44,7 +44,7 @@ Steps to publish this as a template:
 This template follows [Semantic Versioning](https://semver.org/). All changes from `dev` to `main` require a version label:
 
 - **release:major** - Breaking changes (e.g., 1.0.0 → 2.0.0)
-- **release:minor** - New features (e.g., 1.0.0 → 1.1.0)  
+- **release:minor** - New features (e.g., 1.0.0 → 1.1.0)
 - **release:patch** - Bug fixes (e.g., 1.0.0 → 1.0.1)
 - **release:skip** - No version bump (docs, CI tweaks)
 

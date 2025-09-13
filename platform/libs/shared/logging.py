@@ -26,4 +26,3 @@ def get_logger(name: str = "app") -> logging.Logger:
     handler.setFormatter(JsonFormatter())
     logger.addHandler(handler)
     return logger
-

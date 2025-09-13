@@ -5,4 +5,3 @@ Generate them locally with:
     pants generate-lockfiles
 
 Placeholders are committed to document the intent; actual `.lock` files are environment-specific.
-

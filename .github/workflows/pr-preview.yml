@@ -96,21 +96,13 @@ jobs:
             sbkt=$(pulumi -C modules/$m/infrastructure stack output status_bucket --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
             albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}" 2>/dev/null || true)
             # URL encode queue url
-            enc_qurl=$(python3 - <<PY
-import urllib.parse, os
-print(urllib.parse.quote(os.environ['QURL']))
-PY
-)
+            enc_qurl=$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['QURL']))")
             echo "- $m: http://$base (health: http://$base/healthz) — verification passed" >> pr_endpoints.md
             echo "  - Pulumi stack: https://app.pulumi.com/$PULUMI_ORG/$m/pr-${{ github.event.number }}" >> pr_endpoints.md
             if [ -n "$albname" ]; then
               echo "  - AWS Console (ALB): https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname" >> pr_endpoints.md
             fi
-            QURL="$qurl" enc=$(python3 - <<PYP
-import sys,urllib.parse,os
-print(urllib.parse.quote(os.environ['QURL']))
-PYP
-)
+            QURL="$qurl" enc=$(python3 -c "import sys,urllib.parse,os; print(urllib.parse.quote(os.environ['QURL']))")
             echo "  - AWS Console (SQS): https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc" >> pr_endpoints.md
             echo "  - AWS Console (S3): https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION" >> pr_endpoints.md
           done
@@ -168,11 +160,7 @@ PYP
               albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
               if [ -n "$base" ]; then echo "- Current endpoint: http://$base"; fi
               if [ -n "$albname" ]; then echo "- AWS ALB: https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname"; fi
-              if [ -n "$qurl" ]; then enc=$(python3 - <<PYP
-import os,urllib.parse
-print(urllib.parse.quote(os.environ['QURL']))
-PYP
-); QURL="$qurl" echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
+              if [ -n "$qurl" ]; then enc=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['QURL']))"); QURL="$qurl" echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
               if [ -n "$sbkt" ]; then echo "- AWS S3: https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION"; fi
             done
           } > pr_prod_summary.md

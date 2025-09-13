@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -9,4 +10,3 @@ class EventEnvelope(BaseModel):
     at: datetime
     correlation_id: str | None = None
     data: dict
-

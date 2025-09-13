@@ -15,4 +15,3 @@ Usage via helper script:
     ./scripts/bootstrap_foundation.sh
 
 After completion, the script sets the remote and pushes the current repo to `dev` and `main`. A separate workflow blocks direct pushes to `main`.
-

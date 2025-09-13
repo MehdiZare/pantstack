@@ -31,4 +31,3 @@ make bootstrap        # creates GitHub project repo, seeds labels, ECR, CI IAM, 
 make seed-stacks      # initializes test/prod stacks in Pulumi Cloud
 git push -u origin dev
 TXT
-

@@ -4,4 +4,3 @@ extend-ignore = E203,W503
 
 import-restrictions =
     modules\.(\w+)\.backend\.(service|repo|api)\..* -> FORBIDDEN: Cross-module imports must target backend.public.*
-

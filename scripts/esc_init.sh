@@ -27,4 +27,3 @@ echo "==> Pushing values from pulumi/envs/shared.yaml"
 pulumi env set -f pulumi/envs/shared.yaml -e "$PULUMI_ORG/$ENV_NAME"
 
 echo "ESC environment ready: $PULUMI_ORG/$ENV_NAME"
-

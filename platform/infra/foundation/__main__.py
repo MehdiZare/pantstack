@@ -1,8 +1,9 @@
 import os
-import pulumi
+
 import pulumi_aws as aws
 import pulumi_github as github
 
+import pulumi
 
 # Inputs from env (surfaced via Pulumi config or .env when running bootstrap)
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")
@@ -64,7 +65,9 @@ default_branch = github.BranchDefault(
 ecr_repo = aws.ecr.Repository(
     "project-ecr",
     name=PROJECT_SLUG,
-    image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(scan_on_push=True),
+    image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(
+        scan_on_push=True
+    ),
     force_delete=True,
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )

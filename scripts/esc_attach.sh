@@ -42,4 +42,3 @@ else
 fi
 
 echo "Attached (or referenced) ESC environment for $STACK"
-

@@ -44,4 +44,3 @@ Workflows call `scripts/verify_http.sh` to:
 - submit a test event and poll for completion (max 150s)
 
 Deployments depend on these checks passing.
-

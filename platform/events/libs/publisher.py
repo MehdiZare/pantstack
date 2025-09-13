@@ -8,4 +8,3 @@ def publish(evt: EventEnvelope) -> str:
     """
     # TODO: integrate with AWS SNS/EventBridge via Boto3 or Pulumi component
     return evt.id
-

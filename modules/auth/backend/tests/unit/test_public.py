@@ -8,4 +8,3 @@ def test_get_user_public_present():
 
 def test_get_user_public_absent():
     assert get_user_public(9999) is None
-

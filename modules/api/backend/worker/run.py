@@ -2,8 +2,8 @@ import json
 import os
 import time
 from platform.libs.shared.logging import get_logger
-import boto3
 
+import boto3
 
 log = get_logger("api.worker")
 AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
@@ -22,7 +22,9 @@ def process_message(msg: dict) -> None:
     time.sleep(30)
     result = {"id": cid, "status": "done", "payload": payload}
     key = f"results/{cid}.json"
-    s3.put_object(Bucket=STATUS_BUCKET, Key=key, Body=json.dumps(result).encode("utf-8"))
+    s3.put_object(
+        Bucket=STATUS_BUCKET, Key=key, Body=json.dumps(result).encode("utf-8")
+    )
     log.info("completed", extra={"correlation_id": cid})
 
 
@@ -45,4 +47,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -27,4 +27,3 @@ docker_image(
 python_tests(name="unit",        sources=["backend/tests/unit/**/*.py"],        resolve="tests", dependencies=[":auth_core"])
 python_tests(name="integration", sources=["backend/tests/integration/**/*.py"], resolve="tests", dependencies=[":auth_api_src"])
 python_tests(name="e2e",         sources=["backend/tests/e2e/**/*.py"],         resolve="tests", dependencies=[":auth_api_src"])
-

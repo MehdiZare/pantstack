@@ -159,4 +159,3 @@ grep -q "^${LOWER}_core\s*=\s*\"lockfiles/${LOWER}_core.lock\"" pants.toml || \
   sed -i.bak "/^\[python.resolves\]/a ${LOWER}_core   = \"lockfiles/${LOWER}_core.lock\"\n${LOWER}_api    = \"lockfiles/${LOWER}_api.lock\"" pants.toml && rm -f pants.toml.bak
 
 echo "Module $LOWER scaffolded. Run: pants generate-lockfiles"
-

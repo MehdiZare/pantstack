@@ -21,4 +21,3 @@ def test_process_message(monkeypatch):
     # speed up test: patch sleep
     monkeypatch.setattr(worker.time, "sleep", lambda x: None)
     process_message(msg)
-

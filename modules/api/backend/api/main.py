@@ -1,10 +1,10 @@
 import os
 import uuid
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import boto3
 from platform.libs.shared.logging import get_logger
 
+import boto3
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 log = get_logger("api")
 app = FastAPI(title="api", version="0.1.0")
@@ -65,4 +65,3 @@ def run() -> None:
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
