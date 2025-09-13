@@ -8,7 +8,9 @@
       "Bash(gh repo view:*)",
       "Bash(pre-commit run:*)",
       "Bash(python:*)",
-      "Bash(yamllint:*)"
+      "Bash(yamllint:*)",
+      "Bash(gh run view:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

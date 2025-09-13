@@ -8,7 +8,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   preview:
-    if: github.event.action != 'closed'
+    # Skip PR preview in the template repository
+    if: github.event.action != 'closed' && github.repository != 'MehdiZare/pantstack'
     runs-on: ubuntu-latest
     permissions: { id-token: write, contents: read }
     steps:
@@ -181,7 +182,8 @@ jobs:
           PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
 
   teardown:
-    if: github.event.action == 'closed' && github.event.pull_request.base.ref != 'main'
+    # Skip teardown in the template repository
+    if: github.event.action == 'closed' && github.event.pull_request.base.ref != 'main' && github.repository != 'MehdiZare/pantstack'
     runs-on: ubuntu-latest
     permissions: { id-token: write, contents: read }
     steps:

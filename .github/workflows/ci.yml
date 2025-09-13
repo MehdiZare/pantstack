@@ -17,13 +17,15 @@ jobs:
             ./.pants.d
           key: pants-${{ runner.os }}-${{ hashFiles('**/*.BUILD','pants.toml','lockfiles/*.lock','**/requirements*.txt') }}
       - run: pip install pantsbuild.pants==2.22.0
-      - run: pants fmt '::'
+      - run: pants fmt "::"
       - run: pip install pre-commit
       - run: pre-commit run --all-files
-      - run: pants lint '::' && pants typecheck '::' && pants test '::'
+      - run: pants lint "::" && pants typecheck "::" && pants test "::"
   package:
     needs: build-test
     runs-on: ubuntu-latest
+    # Skip packaging in the template repository
+    if: github.repository != 'MehdiZare/pantstack'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
