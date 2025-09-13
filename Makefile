@@ -137,6 +137,20 @@ up:     ## Start local stack
 down:   ## Stop local stack
 	docker compose down -v
 
+dev-up: ## Start LocalStack for local development
+	docker compose -f docker-compose.local.yml up -d localstack
+
+dev-down: ## Stop LocalStack for local development
+	docker compose -f docker-compose.local.yml down -v
+
+dev-api: ## Run API locally with LocalStack (e.g., make dev-api M=api)
+	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue BUCKET_NAME=$(M)-status \
+		python -c "from modules.$(M).backend.api.main import run; run()"
+
+dev-worker: ## Run worker locally with LocalStack (e.g., make dev-worker M=api)
+	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue BUCKET_NAME=$(M)-status \
+		python -c "from modules.$(M).backend.worker.run import main; main()"
+
 mod:    ## Test and package a module (e.g., make mod M=api)
 	./pants test modules/$(M)/:: && ./pants package modules/$(M):*image
 

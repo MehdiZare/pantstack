@@ -44,3 +44,13 @@ Workflows call `scripts/verify_http.sh` to:
 - submit a test event and poll for completion (max 150s)
 
 Deployments depend on these checks passing.
+
+## Local Development (LocalStack)
+
+Run the API and worker locally against LocalStack:
+
+- Start LocalStack: `make dev-up`
+- API: `make dev-api M=api`
+- Worker: `make dev-worker M=api`
+
+By default, when `LOCALSTACK=true`, the app creates a queue `api-queue` and a bucket `api-status` if missing. Override names via `QUEUE_NAME`/`BUCKET_NAME`.

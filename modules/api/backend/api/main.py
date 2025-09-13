@@ -1,8 +1,9 @@
 import os
 import uuid
+from platform.libs.shared.aws import client as aws_client
+from platform.libs.shared.aws import ensure_bucket, ensure_queue
 from platform.libs.shared.logging import get_logger
 
-import boto3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -11,10 +12,20 @@ app = FastAPI(title="api", version="0.1.0")
 
 QUEUE_URL = os.getenv("QUEUE_URL", "")
 STATUS_BUCKET = os.getenv("STATUS_BUCKET", "")
-AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
+QUEUE_NAME = os.getenv("QUEUE_NAME", "api-queue")
+BUCKET_NAME = os.getenv("BUCKET_NAME", "api-status")
+LOCALSTACK = os.getenv("LOCALSTACK", "").lower() in ("1", "true", "yes", "on")
 
-sqs = boto3.client("sqs", region_name=AWS_REGION)
-s3 = boto3.client("s3", region_name=AWS_REGION)
+sqs = aws_client("sqs")
+s3 = aws_client("s3")
+
+if LOCALSTACK:
+    # Bootstrap local resources if env vars are missing
+    if not QUEUE_URL:
+        QUEUE_URL = ensure_queue(sqs, queue_name=QUEUE_NAME)
+    if not STATUS_BUCKET:
+        STATUS_BUCKET = BUCKET_NAME
+        ensure_bucket(s3, bucket_name=STATUS_BUCKET)
 
 
 class TestEvent(BaseModel):

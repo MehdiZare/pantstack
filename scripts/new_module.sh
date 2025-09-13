@@ -135,7 +135,10 @@ REQ
 if [ "$TYPE" = "http-api" ]; then
   cat > "$BASE/infrastructure/__main__.py" << 'PY'
 import os
+import sys
+import pathlib
 import pulumi
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[3]))
 from platform.infra.components.http_service import EcsHttpService
 
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")
@@ -158,7 +161,10 @@ PY
 else
   cat > "$BASE/infrastructure/__main__.py" << 'PY'
 import os
+import sys
+import pathlib
 import pulumi
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[3]))
 from platform.infra.components.worker_service import EcsWorkerService
 
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")

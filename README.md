@@ -134,6 +134,19 @@ Note: Pants is installed via the official bootstrap script. Local targets use `.
   - You can override with env vars: `VPC_ID` and `SUBNET_IDS` (comma-separated).
 - Shared libs under `platform/libs/shared` and `platform/events`.
 
+## Local Development (LocalStack)
+
+Spin up AWS mocks and run services locally:
+
+- `make dev-up` — start LocalStack (S3, SQS) on `http://localhost:4566`
+- `make dev-api M=api` — run the API locally against LocalStack
+- `make dev-worker M=api` — run the worker locally against LocalStack
+- `make dev-down` — stop LocalStack
+
+Notes:
+- When `LOCALSTACK=true`, clients auto‑configure to `http://localhost:4566` and will create the queue/bucket if missing.
+- Queue/bucket names default to `<module>-queue` and `<module>-status`; override via `QUEUE_NAME`/`BUCKET_NAME`.
+
 ## Template vs. Generated Projects
 
 - This repository is a template. CI jobs that build, package, deploy, or create preview stacks are disabled here by default.

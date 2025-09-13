@@ -1,17 +1,26 @@
 import json
 import os
 import time
+from platform.libs.shared.aws import client as aws_client
+from platform.libs.shared.aws import ensure_bucket, ensure_queue
 from platform.libs.shared.logging import get_logger
 
-import boto3
-
 log = get_logger("api.worker")
-AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
 QUEUE_URL = os.getenv("QUEUE_URL", "")
 STATUS_BUCKET = os.getenv("STATUS_BUCKET", "")
+QUEUE_NAME = os.getenv("QUEUE_NAME", "api-queue")
+BUCKET_NAME = os.getenv("BUCKET_NAME", "api-status")
+LOCALSTACK = os.getenv("LOCALSTACK", "").lower() in ("1", "true", "yes", "on")
 
-sqs = boto3.client("sqs", region_name=AWS_REGION)
-s3 = boto3.client("s3", region_name=AWS_REGION)
+sqs = aws_client("sqs")
+s3 = aws_client("s3")
+
+if LOCALSTACK:
+    if not QUEUE_URL:
+        QUEUE_URL = ensure_queue(sqs, queue_name=QUEUE_NAME)
+    if not STATUS_BUCKET:
+        STATUS_BUCKET = BUCKET_NAME
+        ensure_bucket(s3, bucket_name=STATUS_BUCKET)
 
 
 def process_message(msg: dict) -> None:
@@ -30,7 +39,9 @@ def process_message(msg: dict) -> None:
 
 def main() -> None:
     if not QUEUE_URL or not STATUS_BUCKET:
-        raise SystemExit("QUEUE_URL and STATUS_BUCKET must be set")
+        raise SystemExit(
+            "QUEUE_URL and STATUS_BUCKET must be set (or run with LOCALSTACK=true)"
+        )
     while True:
         resp = sqs.receive_message(
             QueueUrl=QUEUE_URL,
