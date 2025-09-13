@@ -31,7 +31,7 @@ jobs:
         run: aws sts get-caller-identity
       - name: Version (semantic-release on main)
         id: semver
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@v5
         with:
           extra_plugins: |
             @semantic-release/changelog
