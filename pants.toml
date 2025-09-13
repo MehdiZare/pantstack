@@ -21,6 +21,8 @@ orders_core   = "lockfiles/orders_core.lock"
 orders_api    = "lockfiles/orders_api.lock"
 api_core      = "lockfiles/api_core.lock"
 api_api       = "lockfiles/api_api.lock"
+admin_core    = "lockfiles/admin_core.lock"
+admin_api     = "lockfiles/admin_api.lock"
 
 # Flake8 configuration
 # Note: Additional flake8 plugins should be added to the requirements files

@@ -111,7 +111,10 @@ make new-project  # Interactive prompts for all values
 
 ## Commands You’ll Use Often
 
-- `make new-module M=orders [TYPE=http-api|worker]` — scaffold a new module (default TYPE=http-api)
+- `make new-module M=ui [TYPE=http-api|ui-celery|worker|worker-celery|event-backend-redis]` — scaffold modules. Common combos:
+  - UI (Celery): `TYPE=ui-celery` — web form to schedule jobs and poll status via Celery
+  - Worker (Celery): `TYPE=worker-celery` — Celery worker with a sample task wrapping your agent
+  - Event backend: `TYPE=event-backend-redis` — Redis broker service (demo infra) for Celery
 - `make mod M=api` — test and package a module
 - `make stack-up M=api ENV=test` — apply a stack locally
 - `make stack-verify M=api ENV=test` — E2E verify
@@ -141,11 +144,16 @@ Spin up AWS mocks and run services locally:
 - `make dev-up` — start LocalStack (S3, SQS) on `http://localhost:4566`
 - `make dev-api M=api` — run the API locally against LocalStack
 - `make dev-worker M=api` — run the worker locally against LocalStack
+- `make dev-celery-up` — start Redis for Celery locally (port 6379)
+- `make dev-celery-worker` — run Celery worker for the admin module
+- `make dev-all-admin` — start admin API, worker, and scheduler in background
+- `make dev-scheduler M=admin` — run scheduler loop for a module
 - `make dev-down` — stop LocalStack
 
 Notes:
 - When `LOCALSTACK=true`, clients auto‑configure to `http://localhost:4566` and will create the queue/bucket if missing.
 - Queue/bucket names default to `<module>-queue` and `<module>-status`; override via `QUEUE_NAME`/`BUCKET_NAME`.
+- For Celery, configure `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` (defaults to `redis://localhost:6379/0`).
 
 ## Template vs. Generated Projects
 

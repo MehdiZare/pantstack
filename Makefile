@@ -138,7 +138,7 @@ down:   ## Stop local stack
 	docker compose down -v
 
 dev-up: ## Start LocalStack for local development
-	docker compose -f docker-compose.local.yml up -d localstack
+	docker compose -f docker-compose.local.yml up -d localstack redis
 
 dev-down: ## Stop LocalStack for local development
 	docker compose -f docker-compose.local.yml down -v
@@ -150,6 +150,42 @@ dev-api: ## Run API locally with LocalStack (e.g., make dev-api M=api)
 dev-worker: ## Run worker locally with LocalStack (e.g., make dev-worker M=api)
 	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue BUCKET_NAME=$(M)-status \
 		python -c "from modules.$(M).backend.worker.run import main; main()"
+
+dev-scheduler: ## Run scheduler loop locally (e.g., make dev-scheduler M=admin)
+	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue \
+		python -c "from modules.$(M).backend.scheduler.loop import main; main()"
+
+dev-all-admin: ## Start admin API, worker, and scheduler (background)
+	@mkdir -p .dev && : > .dev/pids
+	@echo "Starting LocalStack..." && docker compose -f docker-compose.local.yml up -d localstack
+	@echo "Starting admin API..." && \
+	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue BUCKET_NAME=admin-status nohup python -c "from modules.admin.backend.api.main import run; run()" > .dev/admin-api.log 2>&1 & echo $$! >> .dev/pids)
+	@echo "Starting admin worker..." && \
+	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue BUCKET_NAME=admin-status nohup python -c "from modules.admin.backend.worker.run import main; main()" > .dev/admin-worker.log 2>&1 & echo $$! >> .dev/pids)
+	@echo "Starting admin scheduler..." && \
+	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue nohup python -c "from modules.admin.backend.scheduler.loop import main; main()" > .dev/admin-scheduler.log 2>&1 & echo $$! >> .dev/pids)
+	@echo "Logs: .dev/*.log; To stop: make dev-stop"
+
+dev-celery-worker: ## Run Celery worker locally (admin)
+	REDIS_URL=${REDIS_URL:-redis://localhost:6379/0} \
+	CELERY_BROKER_URL=$$REDIS_URL CELERY_RESULT_BACKEND=$$REDIS_URL \
+		python -c "from modules.admin.backend.worker.celery_run import main; main()"
+
+dev-celery-up: ## Start Redis (for Celery) and Flower (optional)
+	docker compose -f docker-compose.local.yml up -d redis
+
+dev-flower: ## Run Flower dashboard locally (requires 'flower' installed)
+	REDIS_URL=${REDIS_URL:-redis://localhost:6379/0} \
+		flower --broker=$$REDIS_URL || (echo "Install flower: pip install flower" && false)
+
+dev-stop: ## Stop background dev processes
+	@if [ -f .dev/pids ]; then \
+	  xargs kill -9 < .dev/pids 2>/dev/null || true; \
+	  rm -f .dev/pids; \
+	  echo "Stopped background dev processes"; \
+	else \
+	  echo "No .dev/pids found"; \
+	fi
 
 mod:    ## Test and package a module (e.g., make mod M=api)
 	./pants test modules/$(M)/:: && ./pants package modules/$(M):*image

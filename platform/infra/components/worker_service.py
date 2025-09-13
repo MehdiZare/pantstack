@@ -22,6 +22,9 @@ class EcsWorkerService(pulumi.ComponentResource):
         subnet_ids: (
             Sequence[pulumi.Input[str]] | pulumi.Output[Sequence[str]] | None
         ) = None,
+        with_sidecar_redis: bool = False,
+        additional_containers: list[dict] | None = None,
+        command: list[str] | None = None,
         opts: pulumi.ResourceOptions | None = None,
     ):
         super().__init__("pkg:component:EcsWorkerService", name, None, opts)
@@ -75,6 +78,45 @@ class EcsWorkerService(pulumi.ComponentResource):
             for k, v in env.items():
                 env_list.append({"name": k, "value": v})
 
+        containers: list[dict] = [
+            {
+                "name": name,
+                "image": image,
+                "essential": True,
+                "environment": env_list,
+                **({"command": command} if command else {}),
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": log_group.name,
+                        "awslogs-region": os.getenv("AWS_REGION", "eu-west-2"),
+                        "awslogs-stream-prefix": name,
+                    },
+                },
+            }
+        ]
+
+        if with_sidecar_redis:
+            containers.append(
+                {
+                    "name": f"{name}-redis",
+                    "image": "redis:7-alpine",
+                    "essential": True,
+                    "portMappings": [{"containerPort": 6379, "protocol": "tcp"}],
+                    "logConfiguration": {
+                        "logDriver": "awslogs",
+                        "options": {
+                            "awslogs-group": log_group.name,
+                            "awslogs-region": os.getenv("AWS_REGION", "eu-west-2"),
+                            "awslogs-stream-prefix": f"{name}-redis",
+                        },
+                    },
+                }
+            )
+
+        if additional_containers:
+            containers.extend(additional_containers)
+
         task_def = aws.ecs.TaskDefinition(
             f"{name}-task",
             family=f"{project_slug}-{name}",
@@ -85,26 +127,7 @@ class EcsWorkerService(pulumi.ComponentResource):
             execution_role_arn=exec_role.arn,
             task_role_arn=task_role.arn,
             container_definitions=pulumi.Output.secret(
-                pulumi.Output.json_dumps(
-                    [
-                        {
-                            "name": name,
-                            "image": image,
-                            "essential": True,
-                            "environment": env_list,
-                            "logConfiguration": {
-                                "logDriver": "awslogs",
-                                "options": {
-                                    "awslogs-group": log_group.name,
-                                    "awslogs-region": os.getenv(
-                                        "AWS_REGION", "eu-west-2"
-                                    ),
-                                    "awslogs-stream-prefix": name,
-                                },
-                            },
-                        }
-                    ]
-                )
+                pulumi.Output.json_dumps(containers)
             ),
         )
 
