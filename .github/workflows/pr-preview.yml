@@ -15,7 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/setup-pants@v4
       - name: Detect changed modules
         id: mods
         run: |
@@ -29,8 +30,9 @@ jobs:
       - name: Build & publish images (feature PRs only)
         if: github.base_ref != 'main'
         run: |
+          ./pants generate-lockfiles
           for m in ${{ steps.mods.outputs.mods }}; do
-            pants package modules/$m:*image
+            ./pants package modules/$m:*image
             export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
             export AWS_REGION=${{ vars.AWS_REGION }}
             export PROJECT_SLUG=${{ vars.PROJECT_SLUG }}
@@ -97,7 +99,7 @@ jobs:
             sbkt=$(pulumi -C modules/$m/infrastructure stack output status_bucket --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
             albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}" 2>/dev/null || true)
             # URL encode queue url
-            enc_qurl=$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['QURL']))")
+            QURL="$qurl"; enc_qurl=$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['QURL']))")
             echo "- $m: http://$base (health: http://$base/healthz) — verification passed" >> pr_endpoints.md
             echo "  - Pulumi stack: https://app.pulumi.com/$PULUMI_ORG/$m/pr-${{ github.event.number }}" >> pr_endpoints.md
             if [ -n "$albname" ]; then
@@ -161,7 +163,7 @@ jobs:
               albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
               if [ -n "$base" ]; then echo "- Current endpoint: http://$base"; fi
               if [ -n "$albname" ]; then echo "- AWS ALB: https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname"; fi
-              if [ -n "$qurl" ]; then enc=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['QURL']))"); QURL="$qurl" echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
+              if [ -n "$qurl" ]; then QURL="$qurl"; enc=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['QURL']))"); echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
               if [ -n "$sbkt" ]; then echo "- AWS S3: https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION"; fi
             done
           } > pr_prod_summary.md
@@ -189,7 +191,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: '3.12' }
       - name: Detect changed modules
         id: mods
         run: |
@@ -204,7 +206,7 @@ jobs:
         uses: pulumi/actions@v5
         with:
           command: destroy
-          stack-name: org/${{ steps.mods.outputs.mods }}/pr-${{ github.event.number }}
+          stack-name: ${{ vars.PULUMI_ORG }}/${{ steps.mods.outputs.mods }}/pr-${{ github.event.number }}
           work-dir: modules/${{ steps.mods.outputs.mods }}/infrastructure
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

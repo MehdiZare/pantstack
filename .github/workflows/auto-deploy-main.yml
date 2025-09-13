@@ -16,7 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/setup-pants@v4
       - name: Detect changed modules
         id: mods
         run: |
@@ -40,8 +41,9 @@ jobs:
       - name: Build & publish images
         if: steps.mods.outputs.mods != ''
         run: |
+          ./pants generate-lockfiles
           for m in ${{ steps.mods.outputs.mods }}; do
-            pants package modules/$m:*image
+            ./pants package modules/$m:*image
           done
           export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
           export AWS_REGION=${{ vars.AWS_REGION }}

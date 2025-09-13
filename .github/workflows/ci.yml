@@ -9,18 +9,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: '3.12' }
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pants
             ./.pants.d
           key: pants-${{ runner.os }}-${{ hashFiles('**/*.BUILD','pants.toml','lockfiles/*.lock','**/requirements*.txt') }}
-      - run: pip install pantsbuild.pants==2.22.0
-      - run: pants fmt "::"
+      - uses: pantsbuild/actions/setup-pants@v4
+      - run: ./pants generate-lockfiles
+      - run: ./pants fmt "::"
       - run: pip install pre-commit
       - run: pre-commit run --all-files
-      - run: pants lint "::" && pants typecheck "::" && pants test "::"
+      - run: ./pants lint "::" && ./pants typecheck "::" && ./pants test "::"
   package:
     needs: build-test
     runs-on: ubuntu-latest
@@ -29,6 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install pantsbuild.pants==2.22.0
-      - run: pants package modules/**:*image
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/setup-pants@v4
+      - run: ./pants generate-lockfiles
+      - run: ./pants package modules/**:*image

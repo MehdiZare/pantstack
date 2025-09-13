@@ -10,7 +10,7 @@ backend_packages = [
 ]
 
 [python]
-interpreter_constraints = ["==3.11.*"]
+interpreter_constraints = ["==3.12.*"]
 
 [python.resolves]
 platform_core = "lockfiles/platform_core.lock"
