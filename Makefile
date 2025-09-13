@@ -166,10 +166,11 @@ dev-all-admin: ## Start admin API, worker, and scheduler (background)
 	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue nohup python -c "from modules.admin.backend.scheduler.loop import main; main()" > .dev/admin-scheduler.log 2>&1 & echo $$! >> .dev/pids)
 	@echo "Logs: .dev/*.log; To stop: make dev-stop"
 
-dev-celery-worker: ## Run Celery worker locally (admin)
-	REDIS_URL=${REDIS_URL:-redis://localhost:6379/0} \
+dev-celery-worker: ## Run Celery worker locally (e.g., make dev-celery-worker M=admin)
+	REDIS_URL=${REDIS_URL:-redis://localhost:6379/0}; \
+	MOD=$${M:-admin}; \
 	CELERY_BROKER_URL=$$REDIS_URL CELERY_RESULT_BACKEND=$$REDIS_URL \
-		python -c "from modules.admin.backend.worker.celery_run import main; main()"
+		python -c "from modules.$$MOD.backend.worker.celery_run import main; main()"
 
 dev-celery-up: ## Start Redis (for Celery) and Flower (optional)
 	docker compose -f docker-compose.local.yml up -d redis
