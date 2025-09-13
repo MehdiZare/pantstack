@@ -111,7 +111,7 @@ make new-project  # Interactive prompts for all values
 
 ## Commands You’ll Use Often
 
-- `make new-module M=orders` — scaffold a new module
+- `make new-module M=orders [TYPE=http-api|worker]` — scaffold a new module (default TYPE=http-api)
 - `make mod M=api` — test and package a module
 - `make stack-up M=api ENV=test` — apply a stack locally
 - `make stack-verify M=api ENV=test` — E2E verify
