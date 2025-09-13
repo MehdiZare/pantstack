@@ -1,0 +1,21 @@
+{
+  "name": "pantstack-template",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pantstack monorepo template with Pants, Pulumi, FastAPI, and GitHub Actions",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MehdiZare/pantstack.git"
+  },
+  "author": "MehdiZare",
+  "license": "MIT",
+  "keywords": [
+    "monorepo",
+    "template",
+    "pants",
+    "pulumi",
+    "fastapi",
+    "aws",
+    "infrastructure-as-code"
+  ]
+}

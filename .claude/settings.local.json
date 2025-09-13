@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(python -m pip index:*)",
-      "Bash(python -m pip search:*)"
+      "Bash(python -m pip search:*)",
+      "Bash(gh release list:*)",
+      "Bash(chmod:*)",
+      "Bash(gh repo view:*)"
     ],
     "deny": [],
     "ask": []

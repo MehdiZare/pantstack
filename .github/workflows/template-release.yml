@@ -1,0 +1,98 @@
+name: template-release
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Only run in the template repository
+    if: github.repository == 'MehdiZare/pantstack'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install semantic-release plugins
+        run: |
+          npm install -g semantic-release \
+            @semantic-release/commit-analyzer \
+            @semantic-release/release-notes-generator \
+            @semantic-release/changelog \
+            @semantic-release/github \
+            @semantic-release/git \
+            conventional-changelog-conventionalcommits
+      
+      - name: Get PR labels
+        id: pr_labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find the PR that was just merged
+            const commits = await github.rest.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              per_page: 1
+            });
+            
+            const commit = commits.data[0];
+            const prMatch = commit.commit.message.match(/#(\d+)/);
+            
+            if (prMatch) {
+              const prNumber = prMatch[1];
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: parseInt(prNumber)
+              });
+              
+              const labels = pr.data.labels.map(l => l.name);
+              const releaseLabel = labels.find(l => 
+                ['release:major', 'release:minor', 'release:patch'].includes(l)
+              );
+              
+              if (releaseLabel) {
+                const type = releaseLabel.split(':')[1];
+                console.log(`Found release label: ${releaseLabel}`);
+                core.setOutput('release_type', type);
+                return type;
+              }
+            }
+            
+            console.log('No explicit release label found, will use conventional commits');
+            return '';
+      
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          if [ "${{ steps.pr_labels.outputs.release_type }}" != "" ]; then
+            echo "Using label-based release type: ${{ steps.pr_labels.outputs.release_type }}"
+            # Override the commit message to force the version bump
+            case "${{ steps.pr_labels.outputs.release_type }}" in
+              major)
+                git commit --amend -m "feat!: ${{ github.event.head_commit.message }}"
+                ;;
+              minor)
+                git commit --amend -m "feat: ${{ github.event.head_commit.message }}"
+                ;;
+              patch)
+                git commit --amend -m "fix: ${{ github.event.head_commit.message }}"
+                ;;
+            esac
+          fi
+          npx semantic-release

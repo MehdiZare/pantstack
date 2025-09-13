@@ -1,7 +1,8 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help quickstart new-project template-help init-template boot fmt lint test up down package mod locks pre-commit-install bootstrap \
+.PHONY: help quickstart new-project template-help init-template seed-labels template-setup docs-serve docs-build docs-publish \
+	boot fmt lint test up down package mod locks pre-commit-install bootstrap \
 	new-module stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
 	gh-new-module-pr
@@ -80,6 +81,34 @@ init-template: ## Initialize and publish as reusable template
 	@echo ""
 	@printf "\033[32m✅ Template ready! Others can now use:\033[0m\n"
 	@echo "  cruft create gh:$${GITHUB_OWNER}/$${GITHUB_REPO}"
+
+seed-labels: ## Create GitHub release labels for versioning
+	@./scripts/seed_labels.sh
+
+template-setup: ## Complete template setup (init + labels + docs)
+	@echo "Setting up template repository..."
+	@$(MAKE) init-template
+	@echo ""
+	@echo "Creating release labels..."
+	@$(MAKE) seed-labels
+	@echo ""
+	@printf "\033[32m✅ Template setup complete!\033[0m\n"
+	@echo "Next steps:"
+	@echo "1. Push changes to dev branch"
+	@echo "2. Create PR from dev to main with version label"
+	@echo "3. Documentation will be published to GitHub Pages"
+
+docs-serve: ## Serve documentation locally
+	@./scripts/docs_serve.sh
+
+docs-build: ## Build documentation
+	@echo "Building documentation..."
+	@pip install -q mkdocs mkdocs-material mkdocs-mermaid2-plugin pymdown-extensions 2>/dev/null || true
+	@mkdocs build --clean
+
+docs-publish: ## Manually publish docs to GitHub Pages
+	@echo "Publishing documentation to GitHub Pages..."
+	@gh workflow run docs-publish.yml
 
 boot:   ## Install Pants build system
 	curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash

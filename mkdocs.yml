@@ -1,0 +1,106 @@
+site_name: Pantstack Template
+site_description: Batteries-included monorepo template with Pants, Pulumi, FastAPI, and GitHub Actions
+site_author: MehdiZare
+site_url: https://mehdizare.github.io/pantstack/
+repo_name: MehdiZare/pantstack
+repo_url: https://github.com/MehdiZare/pantstack
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+plugins:
+  - search
+  - mermaid2
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - codehilite
+  - meta
+  - toc:
+      permalink: true
+  - tables
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quick-start.md
+    - Template Setup: getting-started/template-setup.md
+    - Creating Projects: getting-started/creating-projects.md
+    - Setup Checklist: getting-started/setup-checklist.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Module Structure: architecture/modules.md
+    - Infrastructure: architecture/infrastructure.md
+    - CI/CD Pipeline: architecture/cicd.md
+  - Development:
+    - Commands: development/commands.md
+    - Module Development: development/module-development.md
+    - Testing: development/testing.md
+    - Versioning: development/versioning.md
+  - Template Maintenance:
+    - Publishing: template/publishing.md
+    - Updating: template/updating.md
+    - Contributing: template/contributing.md
+  - Reference:
+    - Claude Instructions: reference/claude.md
+    - API Reference: reference/api.md
+    - Configuration: reference/configuration.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MehdiZare/pantstack
+  version:
+    provider: mike
+    default: latest
