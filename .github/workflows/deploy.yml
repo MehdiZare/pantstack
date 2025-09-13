@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - uses: pantsbuild/actions/setup-pants@v4
+      - uses: pantsbuild/actions/setup-pants@v10
       - name: Configure AWS credentials (static secrets)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
