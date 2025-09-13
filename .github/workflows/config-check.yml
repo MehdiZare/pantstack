@@ -11,6 +11,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # Skip this check in the template repository
+    if: github.repository != 'MehdiZare/pantstack'
     steps:
       - uses: actions/checkout@v4
       - name: Verify required repo variables and secrets

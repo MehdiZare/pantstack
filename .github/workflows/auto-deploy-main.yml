@@ -10,6 +10,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Skip deployment in the template repository
+    if: github.repository != 'MehdiZare/pantstack'
     permissions: { contents: read }
     steps:
       - uses: actions/checkout@v4

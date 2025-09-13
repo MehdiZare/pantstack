@@ -10,32 +10,85 @@ Pantstack is a batteries-included monorepo template for modular services with Pa
 
 ## Quick Start (Template Author)
 
-1) Publish this repository to GitHub and mark it as a Template:
-   - Set `GITHUB_OWNER` and desired `GITHUB_REPO` (template name)
-   - Run: `make pre-commit-install`
-   - Run: `./scripts/publish_template.sh` (or do it in the GitHub UI)
+Prerequisites:
+- GitHub CLI (`gh`) installed and authenticated: `gh auth login`
+- Add workflow scope to GitHub CLI: `gh auth refresh -s workflow`
 
-2) Seed labels for semantic versioning (if not using publish_template.sh):
-   - Actions → Run `labels-seed` workflow once.
+Steps to publish this as a template:
+
+1) Create `.env` file with your configuration:
+   ```bash
+   cp .env.example .env
+   # Edit .env and replace the {{ cookiecutter.* }} placeholders with actual values:
+   # GITHUB_OWNER=YourGitHubUsername
+   # GITHUB_REPO=your-template-name
+   # Leave GITHUB_TOKEN empty to use gh CLI authentication
+   ```
+
+2) Publish the template:
+   ```bash
+   make init-template
+   ```
+   This will:
+   - Create/update the GitHub repository
+   - Push code to `dev` (default) and `main` branches
+   - Mark repository as a GitHub template
+   - Configure repository metadata and topics
+
+3) Your template is now ready at: `https://github.com/YourUsername/your-template-name`
+
+**Note**: The template repository has workflows that are configured to skip execution to avoid failures. These workflows will automatically activate when users create their own projects from the template.
 
 ## Create a New Project from the Template
 
-Option A (recommended): Cookiecutter + Cruft
+### Option A: Cookiecutter with Variable Substitution (Recommended)
 
-- `pipx install cookiecutter cruft` (or `pip install --user ...`)
-- `cruft create gh:${GITHUB_OWNER}/${GITHUB_REPO:-pantstack}` and answer prompts
-- In the new repo:
-  - `cp .env.example .env` and fill values
-  - `make bootstrap` (creates GitHub project repo, ECR, CI IAM, repo vars/secrets)
-  - `make seed-stacks` (init test/prod stacks in Pulumi Cloud)
-  - Optional: `make esc-init` and `make esc-attach M=api ENV=test`
-  - Push to `dev` and open a PR; CI deploys test and verifies.
+This method prompts you for project-specific values and automatically replaces template variables.
 
-Option B: GitHub Template (UI)
+1) Install Cruft (enhanced Cookiecutter):
+   ```bash
+   pipx install cruft  # or: pip install --user cruft
+   ```
 
-- Click “Use this template”, then clone your repo.
-- Fill `.env` and run `make bootstrap` and `make seed-stacks`.
-- (Cookiecutter placeholders exist only in `.env.example` so this path works too.)
+2) Create project from template:
+   ```bash
+   cruft create gh:MehdiZare/pantstack
+   # You'll be prompted for:
+   # - project_slug (your project name)
+   # - github_owner (your GitHub username)
+   # - aws_account_id, aws_region, pulumi_org, etc.
+   ```
+
+3) Set up the new project:
+   ```bash
+   cd your-project-name
+   cp .env.example .env  # Edit with your actual credentials
+   make bootstrap        # Creates GitHub repo, ECR, CI/CD setup
+   make seed-stacks      # Initialize Pulumi stacks
+   git push -u origin dev
+   ```
+
+### Option B: GitHub Template UI (Simple Copy)
+
+This method creates a simple copy without variable substitution.
+
+1) Go to https://github.com/MehdiZare/pantstack
+2) Click "Use this template" → "Create a new repository"
+3) Clone your new repository
+4) Update `.env` file with your values (replace any remaining `{{ cookiecutter.* }}` placeholders)
+5) Run setup commands:
+   ```bash
+   make bootstrap
+   make seed-stacks
+   git push -u origin dev
+   ```
+
+### Option C: Local Template
+
+If you have the template locally:
+```bash
+make new-project  # Interactive prompts for all values
+```
 
 ## Commands You’ll Use Often
 
