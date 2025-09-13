@@ -1,13 +1,19 @@
 name: semantic-pr
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronize]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # Need write to post comments
+      contents: read
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
+      - name: Check PR title format
+        id: conventional
+        uses: amannn/action-semantic-pull-request@v6
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -23,9 +29,29 @@ jobs:
             build
           requireScope: false
           wip: true
-      - name: Allow override with release labels
-        if: failure()
-        uses: actions-ecosystem/action-release-label@v1
+      - name: Check for release labels
+        id: labels
+        uses: actions/github-script@v8
         with:
-          labels: release:patch,release:minor,release:major
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const hasReleaseLabel = labels.some(l =>
+              ['release:major', 'release:minor', 'release:patch', 'release:skip'].includes(l)
+            );
+            console.log('Has release label:', hasReleaseLabel);
+            return hasReleaseLabel;
 
+      - name: Validate PR
+        if: steps.conventional.outcome == 'failure' && steps.labels.outputs.result == 'false'
+        run: |
+          echo "❌ PR title must follow Conventional Commits format OR have a release label"
+          echo ""
+          echo "Option 1: Use conventional commit format:"
+          echo "  Examples: 'feat: add new feature', 'fix: resolve bug', 'docs: update readme'"
+          echo ""
+          echo "Option 2: Add one of these labels:"
+          echo "  • release:major (breaking changes)"
+          echo "  • release:minor (new features)"
+          echo "  • release:patch (bug fixes)"
+          echo "  • release:skip (no version bump)"
+          exit 1
