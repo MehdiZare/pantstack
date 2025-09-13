@@ -112,7 +112,7 @@ jobs:
           cat pr_endpoints.md
       - name: Comment endpoints on PR
         if: github.base_ref != 'main'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -169,7 +169,7 @@ jobs:
           } > pr_prod_summary.md
       - name: Post dry run summary to PR
         if: github.base_ref == 'main'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
