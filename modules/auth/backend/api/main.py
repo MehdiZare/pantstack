@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException
-from modules.auth.backend.public.users import get_user_public
-from modules.auth.backend.schemas.user import UserPublic
 from platform.libs.shared.logging import get_logger
 from platform.libs.shared.settings import settings
 
+from fastapi import FastAPI, HTTPException
+
+from modules.auth.backend.public.users import get_user_public
+from modules.auth.backend.schemas.user import UserPublic
 
 log = get_logger("auth.api")
 app = FastAPI(title="auth-api", version="0.1.0")
@@ -20,7 +21,9 @@ def init_sentry(dsn: str | None) -> None:
     import sentry_sdk
     from sentry_sdk.integrations.fastapi import FastApiIntegration
 
-    sentry_sdk.init(dsn=dsn, integrations=[FastApiIntegration()], traces_sample_rate=0.2)
+    sentry_sdk.init(
+        dsn=dsn, integrations=[FastApiIntegration()], traces_sample_rate=0.2
+    )
 
 
 @app.on_event("startup")
@@ -46,4 +49,3 @@ def run() -> None:  # Entry point for PEX binary
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
