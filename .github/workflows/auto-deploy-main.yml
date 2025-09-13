@@ -1,0 +1,107 @@
+name: auto-deploy-main
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Detect changed modules
+        id: mods
+        run: |
+          echo "mods=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | sed -n 's#^modules/\([^/]*\)/.*#\1#p' | sort -u | xargs)" >> $GITHUB_OUTPUT
+          echo "Changed modules: ${{ steps.mods.outputs.mods }}"
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: aws sts get-caller-identity
+      - name: Version (semantic-release on main)
+        id: semver
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & publish images
+        if: steps.mods.outputs.mods != ''
+        run: |
+          for m in ${{ steps.mods.outputs.mods }}; do
+            pants package modules/$m:*image
+          done
+          export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
+          export AWS_REGION=${{ vars.AWS_REGION }}
+          export PROJECT_SLUG=${{ vars.PROJECT_SLUG }}
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+          for img in dist/*.image.tar; do docker load -i "$img"; done
+          BRANCH=${GITHUB_REF_NAME}
+          SHORT_SHA=${GITHUB_SHA::7}
+          VERSION=${{ steps.semver.outputs.new_release_version }}
+          if [ -z "$VERSION" ]; then VERSION=$(git describe --tags --abbrev=0 || echo 0.0.0); fi
+          docker images --format '{{.Repository}}:{{.Tag}}' | while read -r local; do
+            name=$(echo "$local" | awk -F ':' '{print $1}')
+            # Infer module name from image path by scanning for /modules/<m>/ in repository
+            mod=$(echo "$name" | sed -n 's#.*modules\.\([^/]*\)\..*#\1#p')
+            [ -z "$mod" ] && mod="app"
+            tag="${mod}-${BRANCH}-${SHORT_SHA}"
+            if echo "$name" | grep -q "worker"; then
+              tag="${mod}-worker-${BRANCH}-${SHORT_SHA}"
+            fi
+            ecr="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${tag}"
+            docker tag "$local" "$ecr"
+            docker push "$ecr"
+            # Also push semantic version tag
+            semtag="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${mod}-v$VERSION"
+            if echo "$name" | grep -q "worker"; then
+              semtag="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${mod}-worker-v$VERSION"
+            fi
+            docker tag "$local" "$semtag"
+            docker push "$semtag"
+          done
+      - name: Install Pulumi CLI
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> $GITHUB_PATH
+          sudo apt-get update && sudo apt-get install -y jq
+      - name: Deploy changed modules (prod)
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+          GITHUB_REF_NAME: main
+        run: |
+          for m in ${{ steps.mods.outputs.mods }}; do
+            pulumi stack select "$PULUMI_ORG/$m/prod" || pulumi stack init "$PULUMI_ORG/$m/prod"
+            pulumi up -y -C modules/$m/infrastructure
+          done
+      - name: Verify deployed modules (prod)
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+        run: |
+          chmod +x scripts/verify_http.sh
+          for m in ${{ steps.mods.outputs.mods }}; do
+            base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/prod")
+            if [ -z "$base" ]; then echo "No alb_dns output for $m"; exit 1; fi
+            ./scripts/verify_http.sh "http://$base"
+          done

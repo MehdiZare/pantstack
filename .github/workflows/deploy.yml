@@ -1,0 +1,59 @@
+name: deploy
+on:
+  workflow_dispatch:
+    inputs:
+      module: { description: 'module name (e.g., auth)', required: true }
+      env:    { description: 'env (test|prod)', required: true }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          aws sts get-caller-identity
+      - name: Build & publish image
+        run: |
+          pants package modules/${{ github.event.inputs.module }}:*image
+          # Retag and push to single ECR repo; tag: module-branch-sha
+          export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
+          export AWS_REGION=${{ vars.AWS_REGION }}
+          export PROJECT_SLUG=${{ vars.PROJECT_SLUG }}
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+          # Load all images built by Pants
+          for img in dist/*.image.tar; do docker load -i "$img"; done
+          # Determine tag
+          MOD=${{ github.event.inputs.module }}
+          BRANCH=${GITHUB_REF_NAME}
+          SHORT_SHA=${GITHUB_SHA::7}
+          # Assume local image tag is :latest; tag and push to ECR
+          docker images --format '{{.Repository}}:{{.Tag}}' | while read -r local; do
+            name=$(echo "$local" | awk -F ':' '{print $1}')
+            tag_suffix="${MOD}-${BRANCH}-${SHORT_SHA}"
+            if echo "$name" | grep -q "worker"; then
+              tag_suffix="${MOD}-worker-${BRANCH}-${SHORT_SHA}"
+            fi
+            ecr="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${tag_suffix}"
+            docker tag "$local" "$ecr"
+            docker push "$ecr"
+          done
+      - name: Pulumi up
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: org/${{ github.event.inputs.module }}/${{ github.event.inputs.env }}
+          work-dir: modules/${{ github.event.inputs.module }}/infrastructure
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}

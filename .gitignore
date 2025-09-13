@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Virtual envs
+.venv/
+.venv-*/
+
+# Pants
+.pants.d/
+.pants.workdir/
+
+# Build artifacts
+dist/
+build/
+
+# Local env
+.env
+*.env
+
+# Node (if any frontends later)
+node_modules/
+
+# OS files
+.DS_Store
+

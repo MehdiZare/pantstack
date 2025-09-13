@@ -1,0 +1,225 @@
+name: pr-preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: true
+jobs:
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Detect changed modules
+        id: mods
+        run: |
+          echo "mods=$(git diff --name-only origin/${{ github.base_ref }}... | sed -n 's#^modules/\([^/]*\)/.*#\1#p' | sort -u | xargs)" >> $GITHUB_OUTPUT
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: aws sts get-caller-identity
+      - name: Build & publish images (feature PRs only)
+        if: github.base_ref != 'main'
+        run: |
+          for m in ${{ steps.mods.outputs.mods }}; do
+            pants package modules/$m:*image
+            export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
+            export AWS_REGION=${{ vars.AWS_REGION }}
+            export PROJECT_SLUG=${{ vars.PROJECT_SLUG }}
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            # Load and push all built images with tag: module-branch-pr-<num>-sha
+            for img in dist/*.image.tar; do docker load -i "$img"; done
+            BRANCH=${GITHUB_HEAD_REF}
+            SHORT_SHA=${GITHUB_SHA::7}
+            docker images --format '{{.Repository}}:{{.Tag}}' | while read -r local; do
+              name=$(echo "$local" | awk -F ':' '{print $1}')
+              tag="${m}-${BRANCH}-pr-${{ github.event.number }}-${SHORT_SHA}"
+              if echo "$name" | grep -q "worker"; then
+                tag="${m}-worker-${BRANCH}-pr-${{ github.event.number }}-${SHORT_SHA}"
+              fi
+              ecr="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${tag}"
+              docker tag "$local" "$ecr"
+              docker push "$ecr"
+            done
+          done
+      - name: Install Pulumi CLI
+        if: github.base_ref != 'main'
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> $GITHUB_PATH
+          sudo apt-get update && sudo apt-get install -y jq
+      - name: Pulumi up PR stacks (feature PRs only)
+        if: github.base_ref != 'main'
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+        run: |
+          for m in ${{ steps.mods.outputs.mods }}; do
+            pulumi stack select "$PULUMI_ORG/$m/pr-${{ github.event.number }}" || pulumi stack init "$PULUMI_ORG/$m/pr-${{ github.event.number }}"
+            pulumi up -y -C modules/$m/infrastructure
+          done
+      - name: Verify PR stacks (feature PRs only)
+        if: github.base_ref != 'main'
+        env:
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+        run: |
+          chmod +x scripts/verify_http.sh
+          for m in ${{ steps.mods.outputs.mods }}; do
+            base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            if [ -z "$base" ]; then echo "No alb_dns output for $m"; exit 1; fi
+            ./scripts/verify_http.sh "http://$base"
+          done
+      - name: Collect endpoints (feature PRs only)
+        if: github.base_ref != 'main'
+        id: endpoints
+        env:
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          echo "# Deployment Verification" > pr_endpoints.md
+          echo "PR #${{ github.event.number }} for modules: ${{ steps.mods.outputs.mods }}" >> pr_endpoints.md
+          for m in ${{ steps.mods.outputs.mods }}; do
+            base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            qurl=$(pulumi -C modules/$m/infrastructure stack output queue_url --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            sbkt=$(pulumi -C modules/$m/infrastructure stack output status_bucket --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}" 2>/dev/null || true)
+            # URL encode queue url
+            enc_qurl=$(python3 - <<PY
+import urllib.parse, os
+print(urllib.parse.quote(os.environ['QURL']))
+PY
+)
+            echo "- $m: http://$base (health: http://$base/healthz) — verification passed" >> pr_endpoints.md
+            echo "  - Pulumi stack: https://app.pulumi.com/$PULUMI_ORG/$m/pr-${{ github.event.number }}" >> pr_endpoints.md
+            if [ -n "$albname" ]; then
+              echo "  - AWS Console (ALB): https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname" >> pr_endpoints.md
+            fi
+            QURL="$qurl" enc=$(python3 - <<PYP
+import sys,urllib.parse,os
+print(urllib.parse.quote(os.environ['QURL']))
+PYP
+)
+            echo "  - AWS Console (SQS): https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc" >> pr_endpoints.md
+            echo "  - AWS Console (S3): https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION" >> pr_endpoints.md
+          done
+          cat pr_endpoints.md
+      - name: Comment endpoints on PR
+        if: github.base_ref != 'main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('pr_endpoints.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
+
+      - name: Pulumi preview against prod (dev→main PRs)
+        if: github.base_ref == 'main'
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+          # Simulate post-merge context for tagging
+          GITHUB_REF_NAME: main
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          for m in ${{ steps.mods.outputs.mods }}; do
+            pulumi stack select "$PULUMI_ORG/$m/prod" || pulumi stack init "$PULUMI_ORG/$m/prod"
+            pulumi preview -C modules/$m/infrastructure --stack "$PULUMI_ORG/$m/prod"
+          done
+      - name: Comment links (dev→main PR dry run)
+        if: github.base_ref == 'main'
+        env:
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          {
+            echo "# Dry Run (prod preview)"
+            echo "Modules: ${{ steps.mods.outputs.mods }}"
+            for m in ${{ steps.mods.outputs.mods }}; do
+              echo "\n## $m"
+              echo "- Pulumi stack (prod): https://app.pulumi.com/$PULUMI_ORG/$m/prod"
+              # Try to read existing outputs to provide convenience links if stack exists
+              base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              qurl=$(pulumi -C modules/$m/infrastructure stack output queue_url --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              sbkt=$(pulumi -C modules/$m/infrastructure stack output status_bucket --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              if [ -n "$base" ]; then echo "- Current endpoint: http://$base"; fi
+              if [ -n "$albname" ]; then echo "- AWS ALB: https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname"; fi
+              if [ -n "$qurl" ]; then enc=$(python3 - <<PYP
+import os,urllib.parse
+print(urllib.parse.quote(os.environ['QURL']))
+PYP
+); QURL="$qurl" echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
+              if [ -n "$sbkt" ]; then echo "- AWS S3: https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION"; fi
+            done
+          } > pr_prod_summary.md
+      - name: Post dry run summary to PR
+        if: github.base_ref == 'main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('pr_prod_summary.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
+
+  teardown:
+    if: github.event.action == 'closed' && github.event.pull_request.base.ref != 'main'
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Detect changed modules
+        id: mods
+        run: |
+          echo "mods=$(git log -m -1 --name-only --pretty='' ${{ github.sha }} | sed -n 's#^modules/\([^/]*\)/.*#\1#p' | sort -u | xargs)" >> $GITHUB_OUTPUT
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: aws sts get-caller-identity
+      - name: Pulumi destroy PR stacks
+        uses: pulumi/actions@v5
+        with:
+          command: destroy
+          stack-name: org/${{ steps.mods.outputs.mods }}/pr-${{ github.event.number }}
+          work-dir: modules/${{ steps.mods.outputs.mods }}/infrastructure
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip index:*)",
+      "Bash(python -m pip search:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,11 @@
+# Example Pulumi ESC environment (optional)
+# Use `make esc-init` to create/update this environment in Pulumi Cloud.
+
+values:
+  app:
+    project: ${PROJECT_SLUG:-mono-template}
+    tags:
+      project: ${PROJECT_SLUG:-mono-template}
+  aws:
+    region: ${AWS_REGION:-eu-west-2}
+

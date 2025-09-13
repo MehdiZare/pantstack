@@ -1,0 +1,47 @@
+name: cleanup-pr-stacks
+on:
+  schedule:
+    - cron: '17 2 * * *'  # daily
+  workflow_dispatch: {}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq and Pulumi CLI
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> $GITHUB_PATH
+      - name: Find and destroy stale PR stacks (> 7 days)
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+        run: |
+          cutoff=$(date -u -d '7 days ago' +%s)
+          # Enumerate module infra folders
+          for dir in modules/*/infrastructure; do
+            [ -d "$dir" ] || continue
+            mod=$(basename $(dirname "$dir"))
+            echo "Checking stacks for module: $mod"
+            pulumi -C "$dir" stack ls --json | jq -r '.[] | select(.name | test(".*/pr-\\d+$")) | [.name, (.lastUpdate | sub("Z$"; "+00:00"))] | @tsv' | while IFS=$'\t' read -r name last; do
+              # last can be null if never updated
+              if [ -z "$last" ] || [ "$last" = "" ] || [ "$last" = "null" ]; then
+                ts=0
+              else
+                # Convert ISO8601 to epoch seconds
+                ts=$(date -u -d "$last" +%s || echo 0)
+              fi
+              if [ "$ts" -gt 0 ] && [ "$ts" -lt "$cutoff" ]; then
+                echo "Destroying stale stack: $name"
+                pulumi -C "$dir" stack select "$name" || continue
+                pulumi -C "$dir" destroy -y || true
+                pulumi -C "$dir" stack rm "$name" -y || true
+              fi
+            done
+          done
+

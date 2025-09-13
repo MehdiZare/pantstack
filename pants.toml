@@ -1,0 +1,26 @@
+[GLOBAL]
+pants_version = "2.28.0"
+backend_packages = [
+  "pants.backend.python",
+  "pants.backend.python.lint.black",
+  "pants.backend.python.lint.isort",
+  "pants.backend.python.lint.flake8",
+  "pants.backend.python.typecheck.mypy",
+  "pants.backend.docker",
+]
+
+[python]
+interpreter_constraints = ["==3.11.*"]
+
+[python.resolves]
+platform_core = "lockfiles/platform_core.lock"
+tests         = "lockfiles/tests.lock"
+auth_core     = "lockfiles/auth_core.lock"
+auth_api      = "lockfiles/auth_api.lock"
+orders_core   = "lockfiles/orders_core.lock"
+orders_api    = "lockfiles/orders_api.lock"
+api_core      = "lockfiles/api_core.lock"
+api_api       = "lockfiles/api_api.lock"
+
+# Flake8 configuration
+# Note: Additional flake8 plugins should be added to the requirements files

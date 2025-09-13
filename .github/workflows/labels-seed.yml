@@ -1,0 +1,33 @@
+name: labels-seed
+on:
+  workflow_dispatch: {}
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure release labels exist
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const desired = [
+              {name: 'release:major', color: 'b60205', description: 'force major release'},
+              {name: 'release:minor', color: '0e8a16', description: 'force minor release'},
+              {name: 'release:patch', color: '1d76db', description: 'force patch release'},
+              {name: 'release:skip',  color: 'c5def5', description: 'skip semantic release'},
+            ];
+            const { data: existing } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            for (const lbl of desired) {
+              const found = existing.find(l => l.name.toLowerCase() === lbl.name.toLowerCase());
+              if (!found) {
+                console.log('Creating label', lbl.name);
+                await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, ...lbl });
+              } else {
+                console.log('Label exists', lbl.name);
+              }
+            }
+
