@@ -1,31 +1,31 @@
 # Repository Guidelines
 
-## Project Structure & Modules
-- Monorepo with Pants. Modules live under `modules/<name>`.
-- Typical layout: `backend/{api,service,schemas,public,worker,tests/{unit,integration,e2e}}`, plus `infrastructure/` (Pulumi).
-- Shared code under `platform/libs` and `platform/events`. Third‑party reqs in `3rdparty/python`. Pants lockfiles in `lockfiles/`.
+## Project Structure & Services
+- Monorepo with Pants (Python 3.12). Services live under `services/<name>` (layered: app/domain/adapters/public/infra/tests).
+- Typical layout: `app/{api,worker}`, `domain/{models,services,ports}`, `adapters/{repositories,clients}`, `public/`, `infra/pulumi`, and `tests/{unit,integration,e2e}`.
+- Shared code under `stack/libs`, `stack/events`, and `stack/infra/components`. Third‑party reqs in `3rdparty/python`; resolves in `pants.toml` and lockfiles under `lockfiles/`.
 
 ## Build, Test, and Dev Commands
 - `make boot` — install Pants locally.
 - `make fmt` — format via Black/isort (Pants).
 - `make lint` — Flake8 + mypy typecheck.
 - `make test` — run all tests.
-- `make package` — build Docker images for all modules.
-- `make mod M=api` — test + package a single module.
-- `make up` / `make down` — start/stop local stack via `docker compose`.
-- Direct Pants: `pants fmt ::`, `pants lint ::`, `pants test ::`, `pants package modules/**:*image`.
+- `make package` — build Docker images for all services.
+- `make mod-s S=web` — test + package a single service.
+- `make dev-up` / `make dev-down` — start/stop LocalStack + Redis.
+- `make dev-api-s S=<svc>` / `make dev-worker-s S=<svc>` — run service API/worker locally.
+- Direct Pants: `pants fmt ::`, `pants lint ::`, `pants test ::`, `pants package services/**:*image`.
 
-## Coding Style & Conventions
-- Python only; Pants interpreter constraint `==3.11.*` (see `pants.toml`).
+- Python only; Pants interpreter constraint `==3.12.*` (see `pants.toml`).
 - Formatting: Black; Imports: isort; Lint: Flake8 (line length 100; ignores E203,W503).
 - Types: mypy via Pants; add annotations for public APIs.
-- Cross‑module imports: avoid reaching into other modules’ internals. Use `backend/public` facades. Enforced by `flake8-import-restrictions`.
+- Cross‑service imports: avoid reaching into other services’ internals. Use `public` facades. Enforced by `flake8-import-restrictions`.
 - Naming: packages `snake_case`; binaries/images use Pants targets (see `BUILD`).
 
 ## Testing Guidelines
-- Place tests in `backend/tests/{unit,integration,e2e}` inside each module.
+- Place tests in `services/<name>/tests/{unit,integration,e2e}` inside each service.
 - Name tests `test_*.py`; prefer fast, isolated unit tests. Integration/E2E may use Pulumi outputs where applicable.
-- Run: `make test` or `pants test modules/<name>/::`. Add dependencies in the module `BUILD` file.
+- Run: `make test` or `pants test services/<name>/::`. Add dependencies in the service `BUILD` file.
 
 ## Commit & Pull Requests
 - Conventional Commits recommended: `feat(auth): ...`, `fix(api): ...`.
@@ -49,27 +49,21 @@
 - Local dev (LocalStack + Redis): `make dev-up`, `make dev-api M=admin`, `make dev-worker M=admin`, `make dev-celery-up`, `make dev-celery-worker`, `make dev-all-admin`, `make dev-down`.
 - Env: copy `.env.example` → `.env`. For Strapi tests set `STRAPI_URL` and `STRAPI_TOKEN`.
 
-## Module Scaffolding
-- Create modules: `make new-module M=<name> TYPE=<kind>`.
-- Supported TYPEs:
-  - `http-api` — minimal FastAPI service.
-  - `worker` — generic worker entrypoint.
-  - `ui-celery` — web UI (form) that schedules Celery tasks and polls status.
-  - `worker-celery` — Celery app/worker wrapping `platform.agents.runner.run_agent`.
-  - `event-backend-redis` — infra-only Redis on ECS (demo broker).
-- Scaffolds add BUILD targets, 3rd‑party reqs, resolves, and Pulumi boilerplate.
+## Service Scaffolding
+- Create services: `make new-service S=<name>`.
+- Scaffolds add BUILD targets, per-service resolves, and Pulumi boilerplate.
 
 ## Infra Components (Pulumi)
 - Reusable ECS: `EcsHttpService` and `EcsWorkerService` (sidecar‑ready via `with_sidecar_redis` and `additional_containers`).
 - Redis: `RedisService` (ECS/Fargate + internal NLB) for demo broker needs.
-- Shared VPC exported by foundation stack; modules should fetch `vpc_id`/`public_subnet_ids` via Pulumi StackReference when available. Override with `VPC_ID`/`SUBNET_IDS` only for ad‑hoc runs.
+- Shared VPC exported by foundation stack; services can fetch `vpc_id`/`public_subnet_ids` via StackReference when available. Override with `VPC_ID`/`SUBNET_IDS` for ad‑hoc runs.
 
 ## Coding Style & Tests
 - Black, isort, Flake8 (100 cols, E203/W503 ignored). mypy via Pants.
 - Test layout: `backend/tests/{unit,integration,e2e}`; name files `test_*.py`. Run with `./pants test ::`.
 
 ## CI & PRs
-- CI runs fmt, pre-commit, lint, typecheck, and tests. Packaging/deploy steps are gated off in the template repo.
+- CI runs fmt, pre-commit, lint, typecheck, tests, and packaging of service images. Packaging/deploy steps are gated off in the template repo.
 - Conventional Commits recommended; see `VERSIONING.md`. Open PRs to `dev`; releases flow to `main`.
 
 ## Starter Recipe
