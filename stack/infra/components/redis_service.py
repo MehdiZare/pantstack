@@ -1,9 +1,8 @@
 import json
 from typing import Sequence
 
-import pulumi_aws as aws
-
 import pulumi
+import pulumi_aws as aws
 
 
 class RedisService(pulumi.ComponentResource):

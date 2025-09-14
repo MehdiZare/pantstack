@@ -1,8 +1,7 @@
 import os
 
-import pulumi_aws as aws
-
 import pulumi
+import pulumi_aws as aws
 
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")
 AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")

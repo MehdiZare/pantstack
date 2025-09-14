@@ -2,9 +2,8 @@ import json
 import os
 from typing import Mapping, Sequence
 
-import pulumi_aws as aws
-
 import pulumi
+import pulumi_aws as aws
 
 
 class EcsWorkerService(pulumi.ComponentResource):

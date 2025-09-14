@@ -1,6 +1,7 @@
 import os
 
 import pulumi
+
 from stack.infra.components.http_service import EcsHttpService
 
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")

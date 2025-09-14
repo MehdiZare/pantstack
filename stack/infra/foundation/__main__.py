@@ -1,9 +1,8 @@
 import os
 
+import pulumi
 import pulumi_aws as aws
 import pulumi_github as github
-
-import pulumi
 
 # Inputs from env (surfaced via Pulumi config or .env when running bootstrap)
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")

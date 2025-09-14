@@ -1,8 +1,8 @@
 import os
 
+import pulumi
 import pulumi_aws as aws
 
-import pulumi
 from stack.infra.components.worker_service import EcsWorkerService
 
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")
