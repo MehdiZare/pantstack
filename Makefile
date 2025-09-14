@@ -2,7 +2,7 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help quickstart new-project template-help init-template seed-labels template-setup docs-serve docs-build docs-publish \
-	boot fmt lint test up down package mod locks pre-commit-install bootstrap \
+	boot fmt lint test up down dev-up dev-down package mod mod-s locks pre-commit-install bootstrap \
 	new-module stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
 	gh-new-module-pr
@@ -19,19 +19,19 @@ help: ## Show this help message
 	@printf "  \033[36m%-20s\033[0m %s\n" "create-project" "Create new project from template"
 	@echo ""
 	@printf "\033[33m━━━ Development Commands ━━━\033[0m\n"
-	@grep -E '^(boot|fmt|lint|test|package|up|down|mod|locks|pre-commit-install):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(boot|fmt|lint|test|package|up|down|dev-up|dev-down|mod-s|locks|pre-commit-install|dev-api-s|dev-worker-s|svc-stack-init|svc-stack-up|svc-stack-destroy|svc-stack-preview|svc-stack-outputs|svc-verify-dev|svc-verify-prod):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@printf "\033[33m━━━ Infrastructure Commands ━━━\033[0m\n"
-	@grep -E '^(bootstrap|seed-stacks|stack-|esc-|new-module|verify-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(bootstrap|seed-stacks|svc-stack-|esc-|svc-verify-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@printf "\033[33m━━━ GitHub/CI Commands ━━━\033[0m\n"
 	@grep -E '^(gha-|gh-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "Examples:"
-	@echo "  make quickstart       # Interactive setup wizard"
-	@echo "  make new-project      # Create project from template"
-	@echo "  make mod M=api        # Test and package the api module"
-	@echo "  make stack-up M=api ENV=test  # Deploy to test environment"
+    @echo "Examples:"
+    @echo "  make quickstart       # Interactive setup wizard"
+    @echo "  make new-project      # Create project from template"
+    @echo "  make mod-s S=web      # Test and package a service"
+    @echo "  make svc-stack-up S=web ENV=test  # Deploy a service"
 
 quickstart: ## Interactive setup wizard (template or project)
 	@./scripts/quickstart.sh
@@ -129,7 +129,7 @@ test:   ## Run all tests
 	./pants test ::
 
 package: ## Build Docker images
-	./pants package modules/**:*image
+	./pants package services/**:*image
 
 up:     ## Start local stack
 	docker compose up -d --build
@@ -143,41 +143,12 @@ dev-up: ## Start LocalStack for local development
 dev-down: ## Stop LocalStack for local development
 	docker compose -f docker-compose.local.yml down -v
 
-dev-api: ## Run API locally with LocalStack (e.g., make dev-api M=api)
-	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue BUCKET_NAME=$(M)-status \
-		python -c "from modules.$(M).backend.api.main import run; run()"
+dev-api-s: ## Run service API locally (e.g., make dev-api-s S=web)
+	python -c "from services.$(S).app.api.main import run; run()"
 
-dev-worker: ## Run worker locally with LocalStack (e.g., make dev-worker M=api)
-	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue BUCKET_NAME=$(M)-status \
-		python -c "from modules.$(M).backend.worker.run import main; main()"
+dev-worker-s: ## Run service worker locally (e.g., make dev-worker-s S=agent)
+	python -c "from services.$(S).app.worker.run import main; main()"
 
-dev-scheduler: ## Run scheduler loop locally (e.g., make dev-scheduler M=admin)
-	LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=$(M)-queue \
-		python -c "from modules.$(M).backend.scheduler.loop import main; main()"
-
-dev-all-admin: ## Start admin API, worker, and scheduler (background)
-	@mkdir -p .dev && : > .dev/pids
-	@echo "Starting LocalStack..." && docker compose -f docker-compose.local.yml up -d localstack
-	@echo "Starting admin API..." && \
-	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue BUCKET_NAME=admin-status nohup python -c "from modules.admin.backend.api.main import run; run()" > .dev/admin-api.log 2>&1 & echo $$! >> .dev/pids)
-	@echo "Starting admin worker..." && \
-	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue BUCKET_NAME=admin-status nohup python -c "from modules.admin.backend.worker.run import main; main()" > .dev/admin-worker.log 2>&1 & echo $$! >> .dev/pids)
-	@echo "Starting admin scheduler..." && \
-	  (LOCALSTACK=true AWS_REGION=${AWS_REGION} QUEUE_NAME=admin-queue nohup python -c "from modules.admin.backend.scheduler.loop import main; main()" > .dev/admin-scheduler.log 2>&1 & echo $$! >> .dev/pids)
-	@echo "Logs: .dev/*.log; To stop: make dev-stop"
-
-dev-celery-worker: ## Run Celery worker locally (e.g., make dev-celery-worker M=admin)
-	REDIS_URL=${REDIS_URL:-redis://localhost:6379/0}; \
-	MOD=$${M:-admin}; \
-	CELERY_BROKER_URL=$$REDIS_URL CELERY_RESULT_BACKEND=$$REDIS_URL \
-		python -c "from modules.$$MOD.backend.worker.celery_run import main; main()"
-
-dev-celery-up: ## Start Redis (for Celery) and Flower (optional)
-	docker compose -f docker-compose.local.yml up -d redis
-
-dev-flower: ## Run Flower dashboard locally (requires 'flower' installed)
-	REDIS_URL=${REDIS_URL:-redis://localhost:6379/0} \
-		flower --broker=$$REDIS_URL || (echo "Install flower: pip install flower" && false)
 
 dev-stop: ## Stop background dev processes
 	@if [ -f .dev/pids ]; then \
@@ -188,8 +159,8 @@ dev-stop: ## Stop background dev processes
 	  echo "No .dev/pids found"; \
 	fi
 
-mod:    ## Test and package a module (e.g., make mod M=api)
-	./pants test modules/$(M)/:: && ./pants package modules/$(M):*image
+mod-s:  ## Test and package a service (e.g., make mod-s S=web)
+	./pants test services/$(S)/:: && ./pants package services/$(S):*image
 
 locks:  ## Generate Pants lockfiles
 	./pants generate-lockfiles
@@ -202,8 +173,15 @@ bootstrap: ## Bootstrap foundation infrastructure (requires .env)
 	@$(MAKE) pre-commit-install
 	./scripts/bootstrap_foundation.sh
 
-seed-stacks: ## Initialize Pulumi stacks for all modules
-	./scripts/seed_pulumi.sh
+seed-stacks: ## Initialize Pulumi stacks for all services
+	@for dir in services/*/infra/pulumi; do \
+	  [ -d "$$dir" ] || continue; \
+	  svc=$$(basename $$(dirname $$(dirname "$$dir"))); \
+	  echo "-- $$svc (test)"; \
+	  pulumi -C "$$dir" stack select "$(PULUMI_ORG)/$$svc/test" >/dev/null 2>&1 || pulumi -C "$$dir" stack init "$(PULUMI_ORG)/$$svc/test"; \
+	  echo "-- $$svc (prod)"; \
+	  pulumi -C "$$dir" stack select "$(PULUMI_ORG)/$$svc/prod" >/dev/null 2>&1 || pulumi -C "$$dir" stack init "$(PULUMI_ORG)/$$svc/prod"; \
+	done
 
 esc-init: ## Initialize Pulumi ESC environment (optional)
 	./scripts/esc_init.sh
@@ -217,28 +195,14 @@ publish-template: ## Publish repo as GitHub template
 create-project: ## Create new project from template
 	TEMPLATE_REPO=${TEMPLATE_REPO} GITHUB_OWNER=${GITHUB_OWNER} ./scripts/create_project_from_template.sh
 
-new-module: ## Scaffold new module (e.g., make new-module M=orders)
-	M=$(M) ./scripts/new_module.sh && ./pants generate-lockfiles
+new-service: ## Scaffold new layered service (e.g., make new-service S=search)
+	S=$(S) ./scripts/new_service.sh && ./pants generate-lockfiles
 
-stack-init: ## Initialize Pulumi stack (e.g., make stack-init M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV)
+svc-stack-up: ## Deploy service stack (e.g., make svc-stack-up S=web ENV=test)
+	cd services/$(S)/infra/pulumi && pulumi stack select $(PULUMI_ORG)/$(S)/$(ENV) || pulumi stack init $(PULUMI_ORG)/$(S)/$(ENV) && pulumi up -y
 
-stack-up: ## Deploy module stack (e.g., make stack-up M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack select $(PULUMI_ORG)/$(M)/$(ENV) || pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV) && pulumi up -y
-
-stack-destroy: ## Destroy module stack (e.g., make stack-destroy M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack select $(PULUMI_ORG)/$(M)/$(ENV) && pulumi destroy -y
-
-stack-preview: ## Preview stack changes (e.g., make stack-preview M=api ENV=prod)
-	cd modules/$(M)/infrastructure && pulumi stack select $(PULUMI_ORG)/$(M)/$(ENV) || pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV) && pulumi preview
-
-stack-outputs: ## Show stack outputs (e.g., make stack-outputs M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack output --json
-
-stack-verify: ## Verify deployed stack (e.g., make stack-verify M=api ENV=test)
-	@base=$$(pulumi -C modules/$(M)/infrastructure stack output alb_dns --stack $(PULUMI_ORG)/$(M)/$(ENV)); \
-	if [ -z "$$base" ]; then echo "No alb_dns output for $(M)/$(ENV)"; exit 1; fi; \
-	chmod +x scripts/verify_http.sh && ./scripts/verify_http.sh http://$$base
+svc-stack-outputs: ## Show service stack outputs (e.g., make svc-stack-outputs S=web ENV=test)
+	cd services/$(S)/infra/pulumi && pulumi stack output --json
 
 gha-ci: ## Trigger CI workflow (requires gh CLI)
 	gh workflow run ci.yml -r dev

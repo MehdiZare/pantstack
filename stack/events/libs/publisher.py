@@ -1,4 +1,4 @@
-from platform.events.libs.models import EventEnvelope
+from stack.events.libs.models import EventEnvelope
 
 
 def publish(evt: EventEnvelope) -> str:
