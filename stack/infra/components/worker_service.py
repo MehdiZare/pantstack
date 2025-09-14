@@ -25,6 +25,7 @@ class EcsWorkerService(pulumi.ComponentResource):
         with_sidecar_redis: bool = False,
         additional_containers: list[dict] | None = None,
         command: list[str] | None = None,
+        task_inline_policy_json: pulumi.Input[str] | None = None,
         opts: pulumi.ResourceOptions | None = None,
     ):
         super().__init__("pkg:component:EcsWorkerService", name, None, opts)
@@ -72,6 +73,12 @@ class EcsWorkerService(pulumi.ComponentResource):
             f"{name}-task-role",
             assume_role_policy='{"Version":"2012-10-17","Statement":[{"Action":"sts:AssumeRole","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Effect":"Allow"}]}',
         )
+        if task_inline_policy_json is not None:
+            aws.iam.RolePolicy(
+                f"{name}-task-inline",
+                role=task_role.id,
+                policy=pulumi.Output.secret(task_inline_policy_json),
+            )
 
         env_list = []
         if env:
