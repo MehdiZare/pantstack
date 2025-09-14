@@ -44,7 +44,6 @@ theme:
 
 plugins:
   - search
-  - mermaid2
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -98,6 +97,3 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/MehdiZare/pantstack
-  version:
-    provider: mike
-    default: latest

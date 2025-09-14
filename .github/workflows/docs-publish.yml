@@ -34,7 +34,7 @@ jobs:
       - name: Install MkDocs and dependencies
         run: |
           pip install --upgrade pip
-          pip install mkdocs mkdocs-material mkdocs-mermaid2-plugin pymdown-extensions
+          pip install mkdocs mkdocs-material pymdown-extensions mike
 
       - name: Build documentation
         run: mkdocs build --verbose --clean --strict

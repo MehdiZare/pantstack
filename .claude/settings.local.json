@@ -11,7 +11,10 @@
       "Bash(yamllint:*)",
       "Bash(gh run view:*)",
       "WebFetch(domain:github.com)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git push:*)",
+      "Bash(git stash:*)",
+      "Bash(mkdocs build:*)"
     ],
     "deny": [],
     "ask": []
