@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 
-import boto3
+import boto3  # pants: no-infer-dep
 
 
 def _use_localstack() -> bool:
