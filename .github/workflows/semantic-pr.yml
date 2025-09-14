@@ -1,3 +1,6 @@
+# This workflow enforces semantic PR titles and release labels
+# but ONLY for pull requests targeting the main branch.
+# Feature branches merging to dev don't need to follow these rules.
 name: semantic-pr
 on:
   pull_request:
@@ -6,6 +9,8 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    # Only enforce semantic PR rules when targeting main branch
+    if: github.base_ref == 'main'
     permissions:
       pull-requests: write  # Need write to post comments
       contents: read
