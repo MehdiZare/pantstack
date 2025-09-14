@@ -18,6 +18,18 @@ pex_binary(
     dependencies=[":agent_worker_src"],
 )
 
-docker_image(name="agent_worker_image", dependencies=[":agent_worker_pex"], image_tags=["latest"])
+docker_image(
+    name="agent_worker_image",
+    dependencies=[":agent_worker_pex"],
+    image_tags=["latest"],
+    source="Dockerfile.worker",
+)
 
 python_tests(name="unit", sources=["tests/unit/**/*.py"], resolve="agent_core", dependencies=[":agent_core", ":agent_worker_src"])
+
+python_tests(
+    name="integration",
+    sources=["tests/integration/**/*.py"],
+    resolve="agent_core",
+    dependencies=[":agent_core", ":agent_worker_src"],
+)

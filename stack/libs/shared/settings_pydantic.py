@@ -1,4 +1,8 @@
-from pydantic import BaseSettings, Field  # pants: no-infer-dep
+try:  # Prefer Pydantic v2 style if available
+    from pydantic import Field  # type: ignore[import-not-found]
+    from pydantic_settings import BaseSettings  # type: ignore[import-not-found]
+except Exception:  # pragma: no cover
+    from pydantic import BaseSettings, Field  # type: ignore[no-redef]
 
 
 class Settings(BaseSettings):

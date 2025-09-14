@@ -10,7 +10,7 @@ services:
       - SERVICES=s3,sqs,dynamodb
       - DEBUG=0
       - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN-}
-      - AWS_DEFAULT_REGION=${AWS_REGION:-eu-west-2}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
     ports:
       - "4566:4566" # edge port
     volumes:

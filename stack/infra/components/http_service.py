@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Mapping, Sequence
 
@@ -101,9 +102,24 @@ class EcsHttpService(pulumi.ComponentResource):
 
         # Logs and roles
         log_group = aws.cloudwatch.LogGroup(f"{name}-logs", retention_in_days=14)
+
+        def _assume_role_policy_json() -> str:
+            return json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                            "Effect": "Allow",
+                        }
+                    ],
+                }
+            )
+
         exec_role = aws.iam.Role(
             f"{name}-exec-role",
-            assume_role_policy='{"Version":"2012-10-17","Statement":[{"Action":"sts:AssumeRole","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Effect":"Allow"}]}',
+            assume_role_policy=_assume_role_policy_json(),
         )
         aws.iam.RolePolicyAttachment(
             f"{name}-exec-attach",
@@ -112,7 +128,7 @@ class EcsHttpService(pulumi.ComponentResource):
         )
         task_role = aws.iam.Role(
             f"{name}-task-role",
-            assume_role_policy='{"Version":"2012-10-17","Statement":[{"Action":"sts:AssumeRole","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Effect":"Allow"}]}',
+            assume_role_policy=_assume_role_policy_json(),
         )
         if task_inline_policy_json is not None:
             aws.iam.RolePolicy(
@@ -221,7 +237,7 @@ class EcsHttpService(pulumi.ComponentResource):
             ),
         )
 
-        self.url = lb.dns_name.apply(lambda h: f"http://{h}")
+        self.url = lb.dns_name.apply(lambda h: "http://" + h)
         self.alb_dns = lb.dns_name
         self.cluster_arn = cluster.arn
         self.service_arn = service.arn

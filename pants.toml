@@ -24,3 +24,7 @@ agent_core = "lockfiles/agent_core.lock"
 
 [source]
 root_patterns = ["/"]
+
+[mypy]
+# Relax type checking for external libs that lack type hints in this template
+args = ["--ignore-missing-imports"]

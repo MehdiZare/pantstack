@@ -6,3 +6,6 @@ import-restrictions =
     services\.(\w+)\.app\..* -> FORBIDDEN: services\.\1\.adapters\..*
     services\.(\w+)\.domain\..* -> FORBIDDEN: services\.\1\.(app|adapters)\..*
     services\.(\w+)\.(?!public)\..* -> FORBIDDEN: services\.(?!\1)\w+\.(?!public).*
+
+per-file-ignores =
+    services/web/app/api/main.py: E221,E222,E231,E501,E702

@@ -53,12 +53,35 @@ pex_binary(
     dependencies=[":web_worker_src"],
 )
 
-docker_image(name="web_image", dependencies=[":web_api_pex"], image_tags=["latest"])
-docker_image(name="web_worker_image", dependencies=[":web_worker_pex"], image_tags=["latest"])
+docker_image(
+    name="web_image",
+    dependencies=[":web_api_pex"],
+    image_tags=["latest"],
+    source="Dockerfile.api",
+)
+docker_image(
+    name="web_worker_image",
+    dependencies=[":web_worker_pex"],
+    image_tags=["latest"],
+    source="Dockerfile.worker",
+)
 
 python_tests(
     name="unit",
     sources=["tests/unit/**/*.py"],
     resolve="web_api",
-    dependencies=[":web_core", ":web_api_src", ":web_worker_src"],
+    dependencies=[
+        ":web_core",
+        ":web_api_src",
+        ":web_worker_src",
+        "3rdparty/python:web_api_reqs#fastapi",
+        "3rdparty/python:web_api_reqs#httpx",
+    ],
+)
+
+python_tests(
+    name="integration",
+    sources=["tests/integration/**/*.py"],
+    resolve="web_api",
+    dependencies=[":web_core"],
 )

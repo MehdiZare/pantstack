@@ -27,11 +27,11 @@ help: ## Show this help message
 	@printf "\033[33m━━━ GitHub/CI Commands ━━━\033[0m\n"
 	@grep -E '^(gha-|gh-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-    @echo "Examples:"
-    @echo "  make quickstart       # Interactive setup wizard"
-    @echo "  make new-project      # Create project from template"
-    @echo "  make mod-s S=web      # Test and package a service"
-    @echo "  make svc-stack-up S=web ENV=test  # Deploy a service"
+	@echo "Examples:"
+	@echo "  make quickstart       # Interactive setup wizard"
+	@echo "  make new-project      # Create project from template"
+	@echo "  make mod-s S=web      # Test and package a service"
+	@echo "  make svc-stack-up S=web ENV=test  # Deploy a service"
 
 quickstart: ## Interactive setup wizard (template or project)
 	@./scripts/quickstart.sh
@@ -123,13 +123,16 @@ fmt:    ## Format code
 	./pants fmt ::
 
 lint:   ## Lint and typecheck
-	./pants lint :: && ./pants typecheck ::
+	./pants lint :: && ./pants check ::
 
 test:   ## Run all tests
 	./pants test ::
 
+test-integration: ## Run integration tests against LocalStack (requires dev-up)
+	AWS_REGION?=us-east-1 LOCALSTACK=1 ./pants test "services/**/tests/integration::"
+
 package: ## Build Docker images
-	./pants package services/**:*image
+	./pants package "services/**:*image"
 
 up:     ## Start local stack
 	docker compose up -d --build

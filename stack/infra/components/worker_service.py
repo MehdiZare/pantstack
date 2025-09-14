@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Mapping, Sequence
 
@@ -60,9 +61,24 @@ class EcsWorkerService(pulumi.ComponentResource):
 
         # Logs and roles
         log_group = aws.cloudwatch.LogGroup(f"{name}-logs", retention_in_days=14)
+
+        def _assume_role_policy_json() -> str:
+            return json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                            "Effect": "Allow",
+                        }
+                    ],
+                }
+            )
+
         exec_role = aws.iam.Role(
             f"{name}-exec-role",
-            assume_role_policy='{"Version":"2012-10-17","Statement":[{"Action":"sts:AssumeRole","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Effect":"Allow"}]}',
+            assume_role_policy=_assume_role_policy_json(),
         )
         aws.iam.RolePolicyAttachment(
             f"{name}-exec-attach",
@@ -71,7 +87,7 @@ class EcsWorkerService(pulumi.ComponentResource):
         )
         task_role = aws.iam.Role(
             f"{name}-task-role",
-            assume_role_policy='{"Version":"2012-10-17","Statement":[{"Action":"sts:AssumeRole","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Effect":"Allow"}]}',
+            assume_role_policy=_assume_role_policy_json(),
         )
         if task_inline_policy_json is not None:
             aws.iam.RolePolicy(

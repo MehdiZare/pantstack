@@ -34,6 +34,21 @@ pex_binary(
     dependencies=[":auth_api_src"],
 )
 
-docker_image(name="auth_image", dependencies=[":auth_api_pex"], image_tags=["latest"])
+docker_image(
+    name="auth_image",
+    dependencies=[":auth_api_pex"],
+    image_tags=["latest"],
+    source="Dockerfile.api",
+)
 
-python_tests(name="unit", sources=["tests/unit/**/*.py"], resolve="auth_api", dependencies=[":auth_core", ":auth_api_src"])
+python_tests(
+    name="unit",
+    sources=["tests/unit/**/*.py"],
+    resolve="auth_api",
+    dependencies=[
+        ":auth_core",
+        ":auth_api_src",
+        "3rdparty/python:auth_api_reqs#fastapi",
+        "3rdparty/python:auth_api_reqs#httpx",
+    ],
+)

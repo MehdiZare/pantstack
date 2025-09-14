@@ -1,3 +1,4 @@
+import json
 from typing import Sequence
 
 import pulumi_aws as aws
@@ -49,9 +50,24 @@ class RedisService(pulumi.ComponentResource):
 
         # Logs and roles
         log_group = aws.cloudwatch.LogGroup(f"{name}-logs", retention_in_days=7)
+
+        def _assume_role_policy_json() -> str:
+            return json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": "sts:AssumeRole",
+                            "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                            "Effect": "Allow",
+                        }
+                    ],
+                }
+            )
+
         exec_role = aws.iam.Role(
             f"{name}-exec-role",
-            assume_role_policy='{"Version":"2012-10-17","Statement":[{"Action":"sts:AssumeRole","Principal":{"Service":"ecs-tasks.amazonaws.com"},"Effect":"Allow"}]}',
+            assume_role_policy=_assume_role_policy_json(),
         )
         aws.iam.RolePolicyAttachment(
             f"{name}-exec-attach",
@@ -132,7 +148,7 @@ class RedisService(pulumi.ComponentResource):
             ),
         )
 
-        self.endpoint = nlb.dns_name.apply(lambda h: f"{h}:{port}")
+        self.endpoint = nlb.dns_name.apply(lambda h: f"{h}" + ":" + str(port))
         self.nlb_dns = nlb.dns_name
         self.security_group_id = sg.id
         self.cluster_arn = cluster.arn
