@@ -82,16 +82,18 @@ jobs:
         run: |
           if [ "${{ steps.pr_labels.outputs.release_type }}" != "" ]; then
             echo "Using label-based release type: ${{ steps.pr_labels.outputs.release_type }}"
+            # Get the first line of the commit message only
+            COMMIT_TITLE=$(git log -1 --pretty=format:%s)
             # Override the commit message to force the version bump
             case "${{ steps.pr_labels.outputs.release_type }}" in
               major)
-                git commit --amend -m "feat!: ${{ github.event.head_commit.message }}"
+                git commit --amend -m "feat!: ${COMMIT_TITLE}"
                 ;;
               minor)
-                git commit --amend -m "feat: ${{ github.event.head_commit.message }}"
+                git commit --amend -m "feat: ${COMMIT_TITLE}"
                 ;;
               patch)
-                git commit --amend -m "fix: ${{ github.event.head_commit.message }}"
+                git commit --amend -m "fix: ${COMMIT_TITLE}"
                 ;;
             esac
           fi
