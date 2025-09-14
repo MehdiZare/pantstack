@@ -8,7 +8,7 @@ Before you begin, ensure you have the following installed:
 
 - **Git**: Version control system
 - **GitHub CLI** (`gh`): For GitHub operations
-- **Python 3.11+**: Required for Pants and services
+- **Python 3.12**: Required for Pants and services (repo pins 3.12.*)
 - **Docker**: For local development and packaging
 - **AWS CLI**: For AWS deployments (optional for template)
 - **Pulumi CLI**: For infrastructure management (optional for template)

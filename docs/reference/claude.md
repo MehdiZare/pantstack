@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Overview
 
 This is Pantstack, a batteries-included monorepo template using:
-- **Pants** build system for module management and dependency resolution
+- **Pants** build system for service/module management and dependency resolution
 - **Cookiecutter/Cruft** for template instantiation
 - **FastAPI** for service APIs
 - **Pulumi** for Infrastructure as Code on AWS
 - **GitHub Actions** for CI/CD
 
-The template provides true module independence with per-module infrastructure, packaging, and tests, while allowing safe cross-module reuse via public facades.
+The template provides independence with per-target infrastructure, packaging, and tests, while allowing safe cross-service/module reuse via public facades.
 
 ## Template Usage
 
@@ -68,16 +68,19 @@ make lint
 # Run all tests
 make test
 
-# Test and package a specific module
-make mod M=api
+# Test and package a specific service
+make mod-s S=web
 
 # Generate/update Pants lockfiles
 make locks
 ```
 
-### Module Management
+### Scaffolding
 ```bash
-# Create a new module (scaffolds structure + BUILD files)
+# Create a new service (scaffolds structure + BUILD files)
+make new-service S=writer
+
+# Or create a new module
 make new-module M=orders
 
 # Create module in feature branch with PR
@@ -99,14 +102,14 @@ make down
 # Requires filled .env file
 make bootstrap
 
-# Initialize Pulumi stacks for all modules
+# Initialize Pulumi stacks for all services
 make seed-stacks
 
-# Deploy a module stack locally
-make stack-up M=api ENV=test
+# Deploy a service stack
+make svc-stack-up S=web ENV=test
 
-# Preview changes before deployment
-make stack-preview M=api ENV=prod
+# Show stack outputs
+make svc-stack-outputs S=web ENV=test
 
 # Verify deployed stack
 make stack-verify M=api ENV=test
@@ -117,7 +120,16 @@ make gha-deploy M=api ENV=prod
 
 ## Architecture
 
-### Module Structure
+### Service and Module Structure
+Each service under `services/` contains:
+- `BUILD` - Pants build configuration defining resolves and dependencies
+- `app/{api,worker}` - FastAPI application and worker entry points
+- `domain/` - Business logic
+- `adapters/` - External systems (DynamoDB, EventBridge, S3, SQS, httpx)
+- `public/` - Public facade for cross-service use
+- `infra/pulumi/` - Pulumi IaC code
+- `tests/` - Unit/integration/E2E
+
 Each module under `modules/` contains:
 - `BUILD` - Pants build configuration defining resolves and dependencies
 - `backend/` - Service implementation
@@ -138,8 +150,8 @@ The monorepo uses Pants resolves for isolation:
 
 ### Image Tagging Strategy
 - Single ECR repository per project
-- Images tagged: `{module}-{branch}-{sha}` and `{module}-v{version}`
-- Worker images: `{module}-worker-{branch}-{sha}`
+- Images tagged: `{name}-{branch}-{sha}` and `{name}-v{version}`
+- Worker images: `{name}-worker-{branch}-{sha}`
 
 ## CI/CD Pipeline
 
@@ -194,14 +206,14 @@ Modules expose public APIs through `backend/public/` directories. Other modules 
 
 ## Infrastructure Patterns
 
-Each module's infrastructure (`modules/{module}/infrastructure/__main__.py`) typically includes:
+Each service's or module's infrastructure typically includes:
 - ECS Fargate services with ALB
 - SQS queues for async processing
 - S3 buckets for storage
 - Module-specific VPC and networking
 - IAM roles with least privilege
 
-Foundation infrastructure (`platform/infra/foundation/`) provides:
+Foundation infrastructure (`stack/infra/foundation/`) provides:
 - ECR repository
 - GitHub OIDC provider
 - CI/CD IAM roles

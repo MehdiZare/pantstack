@@ -1,8 +1,8 @@
 # Pantstack
 
-Pantstack is a batteries-included monorepo template for modular services with Pants, FastAPI, Pulumi on AWS, and GitHub Actions.
+Pantstack is a batteries-included monorepo template for layered services and modules with Pants, FastAPI, Pulumi on AWS, and GitHub Actions.
 
-- True module independence (per-module infra, packaging, and tests)
+- Service/module independence (per-target resolves, infra, packaging, and tests)
 - Safe cross-module reuse via public facades and optional HTTP SDKs
 - Single ECR per project; image tags encode module + branch + version
 - CI/CD for lint, typecheck, tests, package, deploy, and PR preview stacks
@@ -111,11 +111,12 @@ make new-project  # Interactive prompts for all values
 
 ## Commands You’ll Use Often
 
-- `make new-module M=orders` — scaffold a new module
-- `make mod M=api` — test and package a module
-- `make stack-up M=api ENV=test` — apply a stack locally
-- `make stack-verify M=api ENV=test` — E2E verify
-- `make gha-deploy M=api ENV=prod` — trigger deploy workflow
+- `make new-service S=writer` — scaffold a new layered service under `services/writer`
+- `make new-module M=orders` — scaffold a new module under `modules/orders`
+- `make mod-s S=web` — test and package a service
+- `make svc-stack-up S=web ENV=test` — deploy a service stack
+- `make svc-stack-outputs S=web ENV=test` — show stack outputs
+- `make gha-deploy M=api ENV=prod` — trigger deploy workflow (module example)
 
 ## Versioning & Promotion
 
@@ -126,9 +127,19 @@ make new-project  # Interactive prompts for all values
 
 ## Architecture
 
-- See `modules/api` for a demo FastAPI + SQS worker and its Pulumi infra.
-- Foundation infra (template bootstrap): `platform/infra/foundation` via Pulumi.
-- Shared libs under `platform/libs/shared` and `platform/events`.
+- Services live under `services/<svc>` with layered folders:
+  - `app/{api,worker}` — FastAPI routers and workers
+  - `domain/{models,services,ports}` — business logic and interfaces
+  - `adapters/{repositories,clients}` — concrete adapters
+  - `public/` — facades for cross-service access
+  - `infra/pulumi/` — ECS/Fargate and supporting AWS infra
+  - `tests/{unit,integration,e2e}` — tests
+- Modules live under `modules/<module>` with `backend/*` and `infrastructure/` (Pulumi).
+- Shared libs under `stack/*`:
+  - `stack/libs/shared` (logging, settings, aws)
+  - `stack/events` (event contracts)
+  - `stack/infra/components` (ECS HTTP/Worker, Redis)
+  - Foundation: `stack/infra/foundation` (shared VPC, ECR, GH setup)
 
 ## First-time Checklist
 
