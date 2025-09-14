@@ -3,4 +3,6 @@ max-line-length = 100
 extend-ignore = E203,W503
 
 import-restrictions =
-    modules\.(\w+)\.backend\.(service|repo|api)\..* -> FORBIDDEN: Cross-module imports must target backend.public.*
+    services\.(\w+)\.app\..* -> FORBIDDEN: services\.\1\.adapters\..*
+    services\.(\w+)\.domain\..* -> FORBIDDEN: services\.\1\.(app|adapters)\..*
+    services\.(\w+)\.(?!public)\..* -> FORBIDDEN: services\.(?!\1)\w+\.(?!public).*
