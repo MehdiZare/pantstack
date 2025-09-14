@@ -1,0 +1,58 @@
+name: main-branch-protection
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  # Job 1: Protect PRs to main (only allow from dev)
+  protect-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    name: Ensure PR to main comes from dev
+    steps:
+      - name: Check PR source branch
+        run: |
+          if [[ "${{ github.head_ref }}" != "dev" ]]; then
+            echo "❌ PRs to main must come from 'dev' branch only"
+            echo "Current branch: ${{ github.head_ref }}"
+            echo ""
+            echo "Please follow the release workflow:"
+            echo "1. Merge feature branches to 'dev'"
+            echo "2. Create PR from 'dev' to 'main' for releases"
+            exit 1
+          else
+            echo "✅ Valid PR: dev → main"
+            echo "This PR can proceed to main branch"
+            exit 0
+          fi
+
+  # Job 2: Protect direct pushes to main (only allow PR merges)
+  protect-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    name: Block direct pushes to main
+    steps:
+      - name: Check if push is from PR merge
+        run: |
+          COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          PUSHER="${{ github.event.pusher.name }}"
+
+          # Check if this is a merge commit from a PR
+          # GitHub PR merges have specific patterns in commit messages
+          if [[ "$COMMIT_MESSAGE" =~ ^Merge\ pull\ request\ \# ]] || \
+             [[ "$COMMIT_MESSAGE" =~ \(\#[0-9]+\)$ ]] || \
+             [[ "$COMMIT_MESSAGE" =~ ^[a-zA-Z]+:.*\(\#[0-9]+\) ]]; then
+            echo "✅ This is a PR merge to main - allowed"
+            echo "Merged by: $PUSHER"
+            echo "Commit: $COMMIT_MESSAGE"
+            exit 0
+          else
+            echo "❌ Direct pushes to main are not allowed. Use PR from dev." >&2
+            echo "Attempted by: $PUSHER"
+            echo "Commit: $COMMIT_MESSAGE"
+            exit 1
+          fi

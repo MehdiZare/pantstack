@@ -22,7 +22,10 @@
       "Bash(gh pr list:*)",
       "Bash(git fetch:*)",
       "Bash(git log:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(for file in .github/workflows/*.yml)",
+      "Bash(head:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
