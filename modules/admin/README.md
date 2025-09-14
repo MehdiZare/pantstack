@@ -5,7 +5,7 @@ Provides a small admin API to schedule long-running jobs and a worker to execute
 - API endpoints:
   - `POST /admin/schedule` — body: `{ "job_type": "...", "params": { ... } }` → `{ "id": "<uuid>" }`
   - `GET /admin/jobs/{id}` — returns `{ status: pending|completed, ... }` from S3
-- Worker consumes from SQS, calls `platform.agents.runner.run_agent`, writes results to S3.
+ - Worker consumes from SQS, calls `stack.agents.runner.run_agent`, writes results to S3.
 - LocalStack support: with `LOCALSTACK=true`, queue/bucket are auto-created if missing.
 
 ## Local Development

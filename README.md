@@ -1,10 +1,10 @@
-# Pantstack
+# Pantstack (services-first)
 
-Pantstack is a batteries-included monorepo template for modular services with Pants, FastAPI, Pulumi on AWS, and GitHub Actions.
+Pantstack is a batteries-included monorepo template for layered services with Pants, FastAPI, Pulumi on AWS, and GitHub Actions.
 
-- True module independence (per-module infra, packaging, and tests)
-- Safe cross-module reuse via public facades and optional HTTP SDKs
-- Single ECR per project; image tags encode module + branch + version
+- Service independence (per-service resolves, infra, packaging, and tests)
+- Safe cross-service reuse via `public/` facades and shared `stack/*` libs
+- Single ECR per project; image tags encode service + branch + version
 - CI/CD for lint, typecheck, tests, package, deploy, and PR preview stacks
 - Pulumi Cloud (Free) backend; optional ESC (Environments) integration
 
@@ -111,14 +111,11 @@ make new-project  # Interactive prompts for all values
 
 ## Commands You’ll Use Often
 
-- `make new-module M=ui [TYPE=http-api|ui-celery|worker|worker-celery|event-backend-redis]` — scaffold modules. Common combos:
-  - UI (Celery): `TYPE=ui-celery` — web form to schedule jobs and poll status via Celery
-  - Worker (Celery): `TYPE=worker-celery` — Celery worker with a sample task wrapping your agent
-  - Event backend: `TYPE=event-backend-redis` — Redis broker service (demo infra) for Celery
-- `make mod M=api` — test and package a module
-- `make stack-up M=api ENV=test` — apply a stack locally
-- `make stack-verify M=api ENV=test` — E2E verify
-- `make gha-deploy M=api ENV=prod` — trigger deploy workflow
+- `make new-service S=<name>` — scaffold a new layered service under `services/<name>`
+- `make mod-s S=web` — test and package a service
+- `make svc-stack-up S=web ENV=test` — deploy a service stack
+- `make svc-stack-outputs S=web ENV=test` — show stack outputs
+- `make gha-deploy M=web ENV=prod` — trigger deploy workflow
 
 Note: Pants is installed via the official bootstrap script. Local targets use `./pants`.
 
@@ -131,36 +128,36 @@ Note: Pants is installed via the official bootstrap script. Local targets use `.
 
 ## Architecture
 
-- See `modules/api` for a demo FastAPI + SQS worker and its Pulumi infra.
-- Foundation infra: `platform/infra/foundation` now also provisions a shared VPC (two public subnets).
-  - Modules automatically reuse this VPC via Pulumi StackReference when `PULUMI_ORG` is set (CI and `make bootstrap` set this).
-  - You can override with env vars: `VPC_ID` and `SUBNET_IDS` (comma-separated).
-- Shared libs under `platform/libs/shared` and `platform/events`.
+- Services live under `services/<svc>` with layered folders:
+  - `app/{api,worker}` — FastAPI routers and workers
+  - `domain/{models,services,ports}` — business logic and interfaces only
+  - `adapters/{repositories,clients}` — concrete adapters (DynamoDB, EventBridge, S3, SQS, httpx)
+  - `public/` — facades for cross-service access and DI providers
+  - `infra/pulumi/` — ECS/Fargate and supporting AWS infra
+  - `tests/{unit,integration,e2e}` — tests (prefer fast unit tests)
+- Shared libs live under `stack/*`:
+  - `stack/libs/shared` (logging, settings, aws client)
+  - `stack/events` (event contracts)
+  - `stack/infra/components` (ECS HTTP/Worker, Redis components)
+  - `stack/agents` (agent runner stub)
+  - Foundation infra: `stack/infra/foundation` (shared VPC, ECR, GH setup)
 
 ## Local Development (LocalStack)
 
 Spin up AWS mocks and run services locally:
 
-- `make dev-up` — start LocalStack (S3, SQS) on `http://localhost:4566`
-- `make dev-api M=api` — run the API locally against LocalStack
-- `make dev-worker M=api` — run the worker locally against LocalStack
-- `make dev-celery-up` — start Redis for Celery locally (port 6379)
-- `make dev-celery-worker` — run Celery worker for the admin module
-- `make dev-all-admin` — start admin API, worker, and scheduler in background
-- `make dev-scheduler M=admin` — run scheduler loop for a module
+- `make dev-up` — start LocalStack (S3, SQS, DynamoDB) on `http://localhost:4566` and Redis on 6379
+- `make dev-api-s S=web` — run the web API locally
+- `make dev-worker-s S=agent` — run the agent worker locally
 - `make dev-down` — stop LocalStack
 
 Notes:
-- When `LOCALSTACK=true`, clients auto‑configure to `http://localhost:4566` and will create the queue/bucket if missing.
-- Queue/bucket names default to `<module>-queue` and `<module>-status`; override via `QUEUE_NAME`/`BUCKET_NAME`.
-- For Celery, configure `CELERY_BROKER_URL` / `CELERY_RESULT_BACKEND` (defaults to `redis://localhost:6379/0`).
+- When `LOCALSTACK=true`, adapters auto‑configure to LocalStack and create queues/buckets/tables if missing.
 
 ## Template vs. Generated Projects
 
-- This repository is a template. CI jobs that build, package, deploy, or create preview stacks are disabled here by default.
-- Workflows use a guard: `${{ github.repository != (vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}`.
-  - In this template repo, keep `vars.TEMPLATE_REPO_SLUG` set to `MehdiZare/pantstack` (or rely on the fallback) so deploy jobs skip.
-  - In generated projects, do not set `TEMPLATE_REPO_SLUG`; deploy/preview workflows will run normally.
+- This repository is a template. CI jobs that deploy are disabled here by default via guards.
+- In generated projects, leave `TEMPLATE_REPO_SLUG` unset so deploy/preview workflows run normally.
 
 ## First-time Checklist
 
