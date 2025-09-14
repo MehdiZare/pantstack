@@ -125,9 +125,9 @@ Your new project will have:
 
 ```
 your-project/
-├── modules/           # Service modules
-│   └── api/          # Example API module
-├── platform/         # Shared platform code
+├── services/         # Layered services (app/domain/adapters/public/infra/tests)
+├── modules/          # Optional modules (backend/*, infrastructure)
+├── stack/            # Shared libs, events, and infra components
 ├── .github/          # GitHub Actions workflows
 ├── pants.toml        # Pants build configuration
 ├── docker-compose.yml # Local development
