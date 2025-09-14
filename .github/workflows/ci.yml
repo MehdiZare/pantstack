@@ -2,7 +2,11 @@ name: ci
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
 jobs:
   build-test:
     runs-on: ubuntu-latest
