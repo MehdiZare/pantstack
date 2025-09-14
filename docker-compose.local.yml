@@ -7,7 +7,7 @@ services:
   localstack:
     image: localstack/localstack:latest
     environment:
-      - SERVICES=s3,sqs
+      - SERVICES=s3,sqs,dynamodb
       - DEBUG=0
       - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN-}
       - AWS_DEFAULT_REGION=${AWS_REGION:-eu-west-2}
