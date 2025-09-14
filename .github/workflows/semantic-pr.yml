@@ -4,7 +4,7 @@
 name: semantic-pr
 on:
   pull_request:
-    types: [opened, edited, synchronize]
+    types: [opened, edited, synchronize, labeled, unlabeled]
 
 jobs:
   lint:
