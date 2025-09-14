@@ -33,4 +33,4 @@ jobs:
         with: { python-version: '3.12' }
       - uses: pantsbuild/actions/init-pants@v10
       - run: pants generate-lockfiles
-      - run: pants package modules/**:*image
+      - run: pants package services/**:*image
