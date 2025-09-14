@@ -25,7 +25,9 @@
       "Bash(gh api:*)",
       "Bash(for file in .github/workflows/*.yml)",
       "Bash(head:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(gh pr checks:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

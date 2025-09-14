@@ -21,10 +21,21 @@ jobs:
       - name: Detect changed services
         id: mods
         run: |
-          CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          # Use environment variables to safely handle refs
+          BEFORE_SHA="${{ github.event.before }}"
+          CURRENT_SHA="${{ github.sha }}"
+
+          # Check if before SHA is valid (not 0000000 for new branches)
+          if [[ "$BEFORE_SHA" == "0000000000000000000000000000000000000000" ]] || [[ -z "$BEFORE_SHA" ]]; then
+            echo "New branch or initial commit, checking all services"
+            CHANGED=$(git ls-files)
+          else
+            CHANGED=$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" 2>/dev/null || git ls-files)
+          fi
+
           SRVS=$(echo "$CHANGED" | sed -n 's#^services/\([^/]*\)/.*#\1#p' | sort -u)
           echo "mods=$(echo $SRVS | xargs)" >> $GITHUB_OUTPUT
-          echo "Changed modules: ${{ steps.mods.outputs.mods }}"
+          echo "Changed modules: $(echo $SRVS | xargs)"
       - name: Configure AWS credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
