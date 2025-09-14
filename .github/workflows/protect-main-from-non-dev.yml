@@ -1,0 +1,15 @@
+name: protect-main-from-non-dev
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  only-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure PR source is dev
+        if: ${{ github.head_ref != 'dev' }}
+        run: |
+          echo "PRs to main must come from 'dev'. Got '${GITHUB_HEAD_REF}'."
+          exit 1
