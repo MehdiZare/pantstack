@@ -8,17 +8,21 @@ concurrency:
   cancel-in-progress: true
 jobs:
   preview:
-    if: github.event.action != 'closed'
+    # Skip PR preview in the template repository
+    if: ${{ github.event.action != 'closed' && github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     runs-on: ubuntu-latest
     permissions: { id-token: write, contents: read }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - name: Detect changed modules
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/init-pants@v10
+      - name: Detect changed services
         id: mods
         run: |
-          echo "mods=$(git diff --name-only origin/${{ github.base_ref }}... | sed -n 's#^modules/\([^/]*\)/.*#\1#p' | sort -u | xargs)" >> $GITHUB_OUTPUT
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...)
+          SRVS=$(echo "$CHANGED" | sed -n 's#^services/\([^/]*\)/.*#\1#p' | sort -u)
+          echo "mods=$(echo $SRVS | xargs)" >> $GITHUB_OUTPUT
       - name: Configure AWS credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -28,8 +32,9 @@ jobs:
       - name: Build & publish images (feature PRs only)
         if: github.base_ref != 'main'
         run: |
+          pants generate-lockfiles
           for m in ${{ steps.mods.outputs.mods }}; do
-            pants package modules/$m:*image
+            pants package services/$m:*image
             export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
             export AWS_REGION=${{ vars.AWS_REGION }}
             export PROJECT_SLUG=${{ vars.PROJECT_SLUG }}
@@ -68,7 +73,7 @@ jobs:
         run: |
           for m in ${{ steps.mods.outputs.mods }}; do
             pulumi stack select "$PULUMI_ORG/$m/pr-${{ github.event.number }}" || pulumi stack init "$PULUMI_ORG/$m/pr-${{ github.event.number }}"
-            pulumi up -y -C modules/$m/infrastructure
+            pulumi up -y -C services/$m/infra/pulumi
           done
       - name: Verify PR stacks (feature PRs only)
         if: github.base_ref != 'main'
@@ -77,7 +82,7 @@ jobs:
         run: |
           chmod +x scripts/verify_http.sh
           for m in ${{ steps.mods.outputs.mods }}; do
-            base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            base=$(pulumi -C services/$m/infra/pulumi stack output alb_dns --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
             if [ -z "$base" ]; then echo "No alb_dns output for $m"; exit 1; fi
             ./scripts/verify_http.sh "http://$base"
           done
@@ -89,35 +94,27 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
         run: |
           echo "# Deployment Verification" > pr_endpoints.md
-          echo "PR #${{ github.event.number }} for modules: ${{ steps.mods.outputs.mods }}" >> pr_endpoints.md
+          echo "PR #${{ github.event.number }} for services: ${{ steps.mods.outputs.mods }}" >> pr_endpoints.md
           for m in ${{ steps.mods.outputs.mods }}; do
-            base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
-            qurl=$(pulumi -C modules/$m/infrastructure stack output queue_url --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
-            sbkt=$(pulumi -C modules/$m/infrastructure stack output status_bucket --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            base=$(pulumi -C services/$m/infra/pulumi stack output alb_dns --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}")
+            qurl=$(pulumi -C services/$m/infra/pulumi stack output queue_url --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}" 2>/dev/null || true)
+            sbkt=$(pulumi -C services/$m/infra/pulumi stack output status_bucket --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}" 2>/dev/null || true)
             albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/pr-${{ github.event.number }}" 2>/dev/null || true)
             # URL encode queue url
-            enc_qurl=$(python3 - <<PY
-import urllib.parse, os
-print(urllib.parse.quote(os.environ['QURL']))
-PY
-)
+            QURL="$qurl"; enc_qurl=$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['QURL']))")
             echo "- $m: http://$base (health: http://$base/healthz) — verification passed" >> pr_endpoints.md
             echo "  - Pulumi stack: https://app.pulumi.com/$PULUMI_ORG/$m/pr-${{ github.event.number }}" >> pr_endpoints.md
             if [ -n "$albname" ]; then
               echo "  - AWS Console (ALB): https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname" >> pr_endpoints.md
             fi
-            QURL="$qurl" enc=$(python3 - <<PYP
-import sys,urllib.parse,os
-print(urllib.parse.quote(os.environ['QURL']))
-PYP
-)
+            QURL="$qurl" enc=$(python3 -c "import sys,urllib.parse,os; print(urllib.parse.quote(os.environ['QURL']))")
             echo "  - AWS Console (SQS): https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc" >> pr_endpoints.md
             echo "  - AWS Console (S3): https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION" >> pr_endpoints.md
           done
           cat pr_endpoints.md
       - name: Comment endpoints on PR
         if: github.base_ref != 'main'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -147,7 +144,7 @@ PYP
         run: |
           for m in ${{ steps.mods.outputs.mods }}; do
             pulumi stack select "$PULUMI_ORG/$m/prod" || pulumi stack init "$PULUMI_ORG/$m/prod"
-            pulumi preview -C modules/$m/infrastructure --stack "$PULUMI_ORG/$m/prod"
+            pulumi preview -C services/$m/infra/pulumi --stack "$PULUMI_ORG/$m/prod"
           done
       - name: Comment links (dev→main PR dry run)
         if: github.base_ref == 'main'
@@ -162,23 +159,19 @@ PYP
               echo "\n## $m"
               echo "- Pulumi stack (prod): https://app.pulumi.com/$PULUMI_ORG/$m/prod"
               # Try to read existing outputs to provide convenience links if stack exists
-              base=$(pulumi -C modules/$m/infrastructure stack output alb_dns --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
-              qurl=$(pulumi -C modules/$m/infrastructure stack output queue_url --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
-              sbkt=$(pulumi -C modules/$m/infrastructure stack output status_bucket --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
-              albname=$(pulumi -C modules/$m/infrastructure stack output alb_name --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              base=$(pulumi -C services/$m/infra/pulumi stack output alb_dns --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              qurl=$(pulumi -C services/$m/infra/pulumi stack output queue_url --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              sbkt=$(pulumi -C services/$m/infra/pulumi stack output status_bucket --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
+              albname=$(pulumi -C services/$m/infra/pulumi stack output alb_name --stack "$PULUMI_ORG/$m/prod" 2>/dev/null || true)
               if [ -n "$base" ]; then echo "- Current endpoint: http://$base"; fi
               if [ -n "$albname" ]; then echo "- AWS ALB: https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname"; fi
-              if [ -n "$qurl" ]; then enc=$(python3 - <<PYP
-import os,urllib.parse
-print(urllib.parse.quote(os.environ['QURL']))
-PYP
-); QURL="$qurl" echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
+              if [ -n "$qurl" ]; then QURL="$qurl"; enc=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['QURL']))"); echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"; fi
               if [ -n "$sbkt" ]; then echo "- AWS S3: https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION"; fi
             done
           } > pr_prod_summary.md
       - name: Post dry run summary to PR
         if: github.base_ref == 'main'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -193,17 +186,18 @@ PYP
           PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
 
   teardown:
-    if: github.event.action == 'closed' && github.event.pull_request.base.ref != 'main'
+    # Skip teardown in the template repository
+    if: ${{ github.event.action == 'closed' && github.event.pull_request.base.ref != 'main' && github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     runs-on: ubuntu-latest
     permissions: { id-token: write, contents: read }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - name: Detect changed modules
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.12' }
+      - name: Detect changed services
         id: mods
         run: |
-          echo "mods=$(git log -m -1 --name-only --pretty='' ${{ github.sha }} | sed -n 's#^modules/\([^/]*\)/.*#\1#p' | sort -u | xargs)" >> $GITHUB_OUTPUT
+          echo "mods=$(git log -m -1 --name-only --pretty='' ${{ github.sha }} | sed -n 's#^services/\([^/]*\)/.*#\1#p' | sort -u | xargs)" >> $GITHUB_OUTPUT
       - name: Configure AWS credentials
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -211,11 +205,11 @@ PYP
           AWS_REGION: ${{ vars.AWS_REGION }}
         run: aws sts get-caller-identity
       - name: Pulumi destroy PR stacks
-        uses: pulumi/actions@v5
+        uses: pulumi/actions@v6
         with:
           command: destroy
-          stack-name: org/${{ steps.mods.outputs.mods }}/pr-${{ github.event.number }}
-          work-dir: modules/${{ steps.mods.outputs.mods }}/infrastructure
+          stack-name: ${{ vars.PULUMI_ORG }}/${{ steps.mods.outputs.mods }}/pr-${{ github.event.number }}
+          work-dir: services/${{ steps.mods.outputs.mods }}/infra/pulumi
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

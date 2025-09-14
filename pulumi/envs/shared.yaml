@@ -8,4 +8,3 @@ values:
       project: ${PROJECT_SLUG:-mono-template}
   aws:
     region: ${AWS_REGION:-eu-west-2}
-

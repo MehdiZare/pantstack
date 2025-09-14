@@ -1,7 +1,7 @@
 import os
+
 import pulumi
 import pulumi_aws as aws
-
 
 PROJECT_SLUG = os.getenv("PROJECT_SLUG", "mono-template")
 AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
@@ -30,7 +30,9 @@ dlq = aws.sqs.Queue(
 
 queue = aws.sqs.Queue(
     "api-queue",
-    redrive_policy=dlq.arn.apply(lambda arn: f'{{"deadLetterTargetArn":"{arn}","maxReceiveCount":5}}'),
+    redrive_policy=dlq.arn.apply(
+        lambda arn: f'{{"deadLetterTargetArn":"{arn}","maxReceiveCount":5}}'
+    ),
     visibility_timeout_seconds=60,
     opts=pulumi.ResourceOptions(provider=provider),
 )
@@ -75,34 +77,56 @@ aws.s3.BucketLifecycleConfiguration(
 )
 
 
-# ECS Fargate API service (ALB)
-# Create a minimal VPC for the module to avoid relying on a default VPC.
-vpc = aws.ec2.Vpc(
-    "api-vpc",
-    cidr_block="10.99.0.0/16",
-    enable_dns_support=True,
-    enable_dns_hostnames=True,
-)
+"""
+VPC selection:
+- If env VPC_ID and SUBNET_IDS (comma-separated) are provided, reuse them.
+- Otherwise, create a minimal dedicated VPC for this module.
+"""
+shared_vpc_id = os.getenv("VPC_ID") or os.getenv("SHARED_VPC_ID")
+shared_subnet_ids = os.getenv("SUBNET_IDS") or os.getenv("SHARED_SUBNET_IDS")
 
-igw = aws.ec2.InternetGateway("api-igw", vpc_id=vpc.id)
-rt = aws.ec2.RouteTable(
-    "api-rt",
-    vpc_id=vpc.id,
-    routes=[aws.ec2.RouteTableRouteArgs(cidr_block="0.0.0.0/0", gateway_id=igw.id)],
-)
-
-azs = aws.get_availability_zones()
-subnet_ids: list[pulumi.Output[str]] = []
-for idx, az in enumerate(azs.names[:2]):
-    sn = aws.ec2.Subnet(
-        f"api-subnet-{idx}",
-        vpc_id=vpc.id,
-        cidr_block=f"10.99.{idx}.0/24",
-        map_public_ip_on_launch=True,
-        availability_zone=az,
+subnet_ids: list[pulumi.Input[str]] | pulumi.Output[list[str]] = []
+if shared_vpc_id and shared_subnet_ids:
+    vpc_id: pulumi.Input[str] = shared_vpc_id
+    subnet_ids = [s.strip() for s in shared_subnet_ids.split(",") if s.strip()]
+elif os.getenv("PULUMI_ORG"):
+    # Attempt to reuse network from foundation stack
+    foundation_stack = (
+        os.getenv("FOUNDATION_STACK")
+        or f"{os.getenv('PULUMI_ORG')}/{PROJECT_SLUG}-foundation"
     )
-    aws.ec2.RouteTableAssociation(f"api-rta-{idx}", route_table_id=rt.id, subnet_id=sn.id)
-    subnet_ids.append(sn.id)
+    ref = pulumi.StackReference(foundation_stack)
+    vpc_id = ref.get_output("vpc_id")
+    subnet_ids = ref.get_output("public_subnet_ids")
+else:
+    vpc = aws.ec2.Vpc(
+        "api-vpc",
+        cidr_block="10.99.0.0/16",
+        enable_dns_support=True,
+        enable_dns_hostnames=True,
+    )
+
+    igw = aws.ec2.InternetGateway("api-igw", vpc_id=vpc.id)
+    rt = aws.ec2.RouteTable(
+        "api-rt",
+        vpc_id=vpc.id,
+        routes=[aws.ec2.RouteTableRouteArgs(cidr_block="0.0.0.0/0", gateway_id=igw.id)],
+    )
+
+    azs = aws.get_availability_zones()
+    for idx, az in enumerate(azs.names[:2]):
+        sn = aws.ec2.Subnet(
+            f"api-subnet-{idx}",
+            vpc_id=vpc.id,
+            cidr_block=f"10.99.{idx}.0/24",
+            map_public_ip_on_launch=True,
+            availability_zone=az,
+        )
+        aws.ec2.RouteTableAssociation(
+            f"api-rta-{idx}", route_table_id=rt.id, subnet_id=sn.id
+        )
+        subnet_ids.append(sn.id)
+    vpc_id = vpc.id
 
 log_group_api = aws.cloudwatch.LogGroup("api-logs", retention_in_days=14)
 
@@ -147,24 +171,72 @@ api_task_def = aws.ecs.TaskDefinition(
     network_mode="awsvpc",
     execution_role_arn=api_exec_role.arn,
     task_role_arn=api_task_role.arn,
-    container_definitions=pulumi.Output.all(image_tag_api, log_group_api.name, queue.url, bucket.bucket, AWS_REGION).apply(
+    container_definitions=pulumi.Output.all(
+        image_tag_api, log_group_api.name, queue.url, bucket.bucket, AWS_REGION
+    ).apply(
         lambda vals: pulumi.Output.secret(
-            f"[{{\"name\":\"api\",\"image\":\"{vals[0]}\",\"essential\":true,\"portMappings\":[{{\"containerPort\":8000,\"protocol\":\"tcp\"}}],\"environment\":[{{\"name\":\"QUEUE_URL\",\"value\":\"{vals[2]}\"}},{{\"name\":\"STATUS_BUCKET\",\"value\":\"{vals[3]}\"}},{{\"name\":\"AWS_REGION\",\"value\":\"{vals[4]}\"}}],\"logConfiguration\":{{\"logDriver\":\"awslogs\",\"options\":{{\"awslogs-group\":\"{vals[1]}\",\"awslogs-region\":\"{AWS_REGION}\",\"awslogs-stream-prefix\":\"api\"}}}}}]"
+            f'[{{"name":"api","image":"{vals[0]}","essential":true,"portMappings":[{{"containerPort":8000,"protocol":"tcp"}}],"environment":[{{"name":"QUEUE_URL","value":"{vals[2]}"}},{{"name":"STATUS_BUCKET","value":"{vals[3]}"}},{{"name":"AWS_REGION","value":"{vals[4]}"}}],"logConfiguration":{{"logDriver":"awslogs","options":{{"awslogs-group":"{vals[1]}","awslogs-region":"{AWS_REGION}","awslogs-stream-prefix":"api"}}}}}}]'
         )
     ),
 )
 
-lb_sg = aws.ec2.SecurityGroup("api-alb-sg", vpc_id=vpc.id)
-aws.ec2.SecurityGroupRule("api-alb-http", type="ingress", security_group_id=lb_sg.id, from_port=80, to_port=80, protocol="tcp", cidr_blocks=["0.0.0.0/0"])
-aws.ec2.SecurityGroupRule("api-alb-egress", type="egress", security_group_id=lb_sg.id, from_port=0, to_port=0, protocol="-1", cidr_blocks=["0.0.0.0/0"])
+lb_sg = aws.ec2.SecurityGroup("api-alb-sg", vpc_id=vpc_id)
+aws.ec2.SecurityGroupRule(
+    "api-alb-http",
+    type="ingress",
+    security_group_id=lb_sg.id,
+    from_port=80,
+    to_port=80,
+    protocol="tcp",
+    cidr_blocks=["0.0.0.0/0"],
+)
+aws.ec2.SecurityGroupRule(
+    "api-alb-egress",
+    type="egress",
+    security_group_id=lb_sg.id,
+    from_port=0,
+    to_port=0,
+    protocol="-1",
+    cidr_blocks=["0.0.0.0/0"],
+)
 
-svc_sg = aws.ec2.SecurityGroup("api-svc-sg", vpc_id=vpc.id)
-aws.ec2.SecurityGroupRule("api-svc-ingress", type="ingress", security_group_id=svc_sg.id, from_port=8000, to_port=8000, protocol="tcp", source_security_group_id=lb_sg.id)
-aws.ec2.SecurityGroupRule("api-svc-egress", type="egress", security_group_id=svc_sg.id, from_port=0, to_port=0, protocol="-1", cidr_blocks=["0.0.0.0/0"])
+svc_sg = aws.ec2.SecurityGroup("api-svc-sg", vpc_id=vpc_id)
+aws.ec2.SecurityGroupRule(
+    "api-svc-ingress",
+    type="ingress",
+    security_group_id=svc_sg.id,
+    from_port=8000,
+    to_port=8000,
+    protocol="tcp",
+    source_security_group_id=lb_sg.id,
+)
+aws.ec2.SecurityGroupRule(
+    "api-svc-egress",
+    type="egress",
+    security_group_id=svc_sg.id,
+    from_port=0,
+    to_port=0,
+    protocol="-1",
+    cidr_blocks=["0.0.0.0/0"],
+)
 
 lb = aws.lb.LoadBalancer("api-lb", security_groups=[lb_sg.id], subnets=subnet_ids)
-tg = aws.lb.TargetGroup("api-tg", port=8000, protocol="HTTP", target_type="ip", vpc_id=vpc.id, health_check=aws.lb.TargetGroupHealthCheckArgs(path="/healthz"))
-lst = aws.lb.Listener("api-listener", load_balancer_arn=lb.arn, port=80, default_actions=[aws.lb.ListenerDefaultActionArgs(type="forward", target_group_arn=tg.arn)])
+tg = aws.lb.TargetGroup(
+    "api-tg",
+    port=8000,
+    protocol="HTTP",
+    target_type="ip",
+    vpc_id=vpc_id,
+    health_check=aws.lb.TargetGroupHealthCheckArgs(path="/healthz"),
+)
+lst = aws.lb.Listener(
+    "api-listener",
+    load_balancer_arn=lb.arn,
+    port=80,
+    default_actions=[
+        aws.lb.ListenerDefaultActionArgs(type="forward", target_group_arn=tg.arn)
+    ],
+)
 
 cluster = aws.ecs.Cluster("api-cluster")
 
@@ -174,8 +246,14 @@ api_svc = aws.ecs.Service(
     desired_count=1,
     launch_type="FARGATE",
     task_definition=api_task_def.arn,
-    load_balancers=[aws.ecs.ServiceLoadBalancerArgs(container_name="api", container_port=8000, target_group_arn=tg.arn)],
-    network_configuration=aws.ecs.ServiceNetworkConfigurationArgs(subnets=subnet_ids, assign_public_ip=True, security_groups=[svc_sg.id]),
+    load_balancers=[
+        aws.ecs.ServiceLoadBalancerArgs(
+            container_name="api", container_port=8000, target_group_arn=tg.arn
+        )
+    ],
+    network_configuration=aws.ecs.ServiceNetworkConfigurationArgs(
+        subnets=subnet_ids, assign_public_ip=True, security_groups=[svc_sg.id]
+    ),
 )
 
 
@@ -197,7 +275,11 @@ worker_policy_doc = aws.iam.get_policy_document_output(
     statements=[
         aws.iam.GetPolicyDocumentStatementArgs(
             effect="Allow",
-            actions=["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"],
+            actions=[
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueAttributes",
+            ],
             resources=[queue.arn],
         ),
         aws.iam.GetPolicyDocumentStatementArgs(
@@ -208,7 +290,9 @@ worker_policy_doc = aws.iam.get_policy_document_output(
     ]
 )
 
-aws.iam.RolePolicy("api-worker-inline", role=task_role.id, policy=worker_policy_doc.json)
+aws.iam.RolePolicy(
+    "api-worker-inline", role=task_role.id, policy=worker_policy_doc.json
+)
 
 exec_role = aws.iam.Role(
     "api-worker-exec-role",
@@ -221,7 +305,6 @@ aws.iam.RolePolicyAttachment(
     policy_arn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
 )
 
-cluster = aws.ecs.Cluster("api-cluster")
 
 task_def = aws.ecs.TaskDefinition(
     "api-worker-task",
@@ -232,14 +315,16 @@ task_def = aws.ecs.TaskDefinition(
     network_mode="awsvpc",
     execution_role_arn=exec_role.arn,
     task_role_arn=task_role.arn,
-    container_definitions=pulumi.Output.all(image_tag_worker, log_group.name, queue.url, bucket.bucket, AWS_REGION).apply(
+    container_definitions=pulumi.Output.all(
+        image_tag_worker, log_group.name, queue.url, bucket.bucket, AWS_REGION
+    ).apply(
         lambda vals: pulumi.Output.secret(
-            f"[{{\"name\":\"worker\",\"image\":\"{vals[0]}\",\"essential\":true,\"environment\":[{{\"name\":\"QUEUE_URL\",\"value\":\"{vals[2]}\"}},{{\"name\":\"STATUS_BUCKET\",\"value\":\"{vals[3]}\"}},{{\"name\":\"AWS_REGION\",\"value\":\"{vals[4]}\"}}],\"logConfiguration\":{{\"logDriver\":\"awslogs\",\"options\":{{\"awslogs-group\":\"{vals[1]}\",\"awslogs-region\":\"{AWS_REGION}\",\"awslogs-stream-prefix\":\"worker\"}}}}}]"
+            f'[{{"name":"worker","image":"{vals[0]}","essential":true,"environment":[{{"name":"QUEUE_URL","value":"{vals[2]}"}},{{"name":"STATUS_BUCKET","value":"{vals[3]}"}},{{"name":"AWS_REGION","value":"{vals[4]}"}}],"logConfiguration":{{"logDriver":"awslogs","options":{{"awslogs-group":"{vals[1]}","awslogs-region":"{AWS_REGION}","awslogs-stream-prefix":"worker"}}}}}}]'
         )
     ),
 )
 
-sg = aws.ec2.SecurityGroup("api-worker-sg", vpc_id=vpc.id, description="api worker sg")
+sg = aws.ec2.SecurityGroup("api-worker-sg", vpc_id=vpc_id, description="api worker sg")
 
 svc = aws.ecs.Service(
     "api-worker-svc",

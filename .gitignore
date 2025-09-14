@@ -19,10 +19,11 @@ build/
 # Local env
 .env
 *.env
+.dev/
 
 # Node (if any frontends later)
 node_modules/
 
 # OS files
 .DS_Store
-
+/.claude/

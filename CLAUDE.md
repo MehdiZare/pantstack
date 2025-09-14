@@ -15,9 +15,20 @@ The template provides true module independence with per-module infrastructure, p
 
 ## Template Usage
 
-This repository serves as a Cookiecutter template for creating new monorepo projects. 
+This repository serves as a Cookiecutter template for creating new monorepo projects.
 
-### Quick Start for Creating New Projects
+### Publishing as a Template (Template Authors)
+
+Prerequisites:
+- GitHub CLI installed: `gh auth login`
+- Add workflow scope: `gh auth refresh -s workflow` (required for pushing GitHub Actions workflows)
+
+Steps:
+1. Copy `.env.example` to `.env` and replace `{{ cookiecutter.* }}` placeholders with actual values
+2. Run `make init-template` to publish to GitHub as a template
+
+### Creating Projects from Template (Template Users)
+
 ```bash
 # Interactive wizard (recommended)
 make quickstart
@@ -26,7 +37,7 @@ make quickstart
 make new-project
 
 # Or use from GitHub (after publishing)
-cruft create gh:owner/repo
+cruft create gh:MehdiZare/pantstack
 ```
 
 ### Template Management Commands

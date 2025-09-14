@@ -2,31 +2,83 @@ name: ci
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
 jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.12' }
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cache/pants
             ./.pants.d
           key: pants-${{ runner.os }}-${{ hashFiles('**/*.BUILD','pants.toml','lockfiles/*.lock','**/requirements*.txt') }}
-      - run: pip install pantsbuild.pants==2.22.0
-      - run: pants fmt ::
+      - uses: pantsbuild/actions/init-pants@v10
+      - run: pants generate-lockfiles
+      - run: pants fmt "::"
       - run: pip install pre-commit
       - run: pre-commit run --all-files
-      - run: pants lint :: && pants typecheck :: && pants test ::
+      - run: pants lint "::" && pants check "::" && pants test "::"
   package:
     needs: build-test
     runs-on: ubuntu-latest
+    # Skip packaging in the template repository
+    if: ${{ github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install pantsbuild.pants==2.22.0
-      - run: pants package modules/**:*image
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/init-pants@v10
+      - run: pants generate-lockfiles
+      - run: pants package "services/**:*image"
+      - name: Smoke test containers (web/auth)
+        run: |
+          set -euxo pipefail
+          # Load all built images
+          for img in dist/*.image.tar; do docker load -i "$img"; done
+          run_web() {
+            cname=$1; img=$2
+            docker run -d -p 8000:8000 --name "$cname" "$img"
+            for i in {1..30}; do
+              if curl -fsS http://localhost:8000/healthz >/dev/null; then
+                break
+              fi
+              sleep 1
+            done
+            curl -fsS http://localhost:8000/healthz | tee /dev/stderr | grep -q '"status": *"ok"'
+            docker rm -f "$cname" >/dev/null 2>&1 || true
+          }
+          # Iterate images and run health check for web/auth API images
+          while read -r local; do
+            name=$(echo "$local" | awk -F ':' '{print $1}')
+            case "$name" in
+              *web_image) run_web smoke-web "$local" ;;
+              *auth_image) run_web smoke-auth "$local" ;;
+            esac
+          done < <(docker images --format '{{.Repository}}:{{.Tag}}')
+
+  integration-tests:
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/init-pants@v10
+      - name: Start LocalStack
+        run: docker compose -f docker-compose.local.yml up -d localstack
+      - name: Run integration tests (LocalStack)
+        env:
+          LOCALSTACK: "1"
+          AWS_REGION: us-east-1
+        run: pants test "services/**/tests/integration::"
+      - name: Stop LocalStack
+        if: always()
+        run: docker compose -f docker-compose.local.yml down -v

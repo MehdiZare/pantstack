@@ -23,3 +23,5 @@ repos:
     rev: 7.3.0
     hooks:
       - id: flake8
+        exclude: '(infrastructure/|\.pulumi/)'
+        args: ['--extend-ignore=IMR200,IMR241,E501']

@@ -1,0 +1,11 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Pants provides the pex artifact from the dependency in the build context at this path
+COPY services.web/web_worker_pex.pex /app/worker.pex
+
+ENTRYPOINT ["python","/app/worker.pex"]

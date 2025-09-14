@@ -1,7 +1,8 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help quickstart new-project template-help init-template boot fmt lint test up down package mod locks pre-commit-install bootstrap \
+.PHONY: help quickstart new-project template-help init-template seed-labels template-setup docs-serve docs-build docs-publish \
+	boot fmt lint test up down dev-up dev-down package mod mod-s locks pre-commit-install bootstrap \
 	new-module stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
 	gh-new-module-pr
@@ -18,10 +19,10 @@ help: ## Show this help message
 	@printf "  \033[36m%-20s\033[0m %s\n" "create-project" "Create new project from template"
 	@echo ""
 	@printf "\033[33m━━━ Development Commands ━━━\033[0m\n"
-	@grep -E '^(boot|fmt|lint|test|package|up|down|mod|locks|pre-commit-install):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(boot|fmt|lint|test|package|up|down|dev-up|dev-down|mod-s|locks|pre-commit-install|dev-api-s|dev-worker-s|svc-stack-init|svc-stack-up|svc-stack-destroy|svc-stack-preview|svc-stack-outputs|svc-verify-dev|svc-verify-prod):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@printf "\033[33m━━━ Infrastructure Commands ━━━\033[0m\n"
-	@grep -E '^(bootstrap|seed-stacks|stack-|esc-|new-module|verify-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^(bootstrap|seed-stacks|svc-stack-|esc-|svc-verify-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@printf "\033[33m━━━ GitHub/CI Commands ━━━\033[0m\n"
 	@grep -E '^(gha-|gh-):.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -29,8 +30,8 @@ help: ## Show this help message
 	@echo "Examples:"
 	@echo "  make quickstart       # Interactive setup wizard"
 	@echo "  make new-project      # Create project from template"
-	@echo "  make mod M=api        # Test and package the api module"
-	@echo "  make stack-up M=api ENV=test  # Deploy to test environment"
+	@echo "  make mod-s S=web      # Test and package a service"
+	@echo "  make svc-stack-up S=web ENV=test  # Deploy a service"
 
 quickstart: ## Interactive setup wizard (template or project)
 	@./scripts/quickstart.sh
@@ -81,21 +82,57 @@ init-template: ## Initialize and publish as reusable template
 	@printf "\033[32m✅ Template ready! Others can now use:\033[0m\n"
 	@echo "  cruft create gh:$${GITHUB_OWNER}/$${GITHUB_REPO}"
 
+seed-labels: ## Create GitHub release labels for versioning
+	@./scripts/seed_labels.sh
+
+template-setup: ## Complete template setup (init + labels + docs)
+	@echo "Setting up template repository..."
+	@$(MAKE) init-template
+	@echo ""
+	@echo "Installing pre-commit hooks..."
+	@$(MAKE) pre-commit-install
+	@echo ""
+	@echo "Creating release labels..."
+	@$(MAKE) seed-labels
+	@echo ""
+	@printf "\033[32m✅ Template setup complete!\033[0m\n"
+	@echo "Next steps:"
+	@echo "1. Run 'pre-commit run --all-files' to check formatting"
+	@echo "2. Push changes to dev branch"
+	@echo "3. Create PR from dev to main with version label"
+	@echo "4. Documentation will be published to GitHub Pages"
+
+docs-serve: ## Serve documentation locally
+	@./scripts/docs_serve.sh
+
+docs-build: ## Build documentation
+	@echo "Building documentation..."
+	@pip install -q mkdocs mkdocs-material mkdocs-mermaid2-plugin pymdown-extensions 2>/dev/null || true
+	@mkdocs build --clean
+
+docs-publish: ## Manually publish docs to GitHub Pages
+	@echo "Publishing documentation to GitHub Pages..."
+	@gh workflow run docs-publish.yml
+
 boot:   ## Install Pants build system
 	curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
 	@echo "Run: export PATH=\"\$$HOME/.local/bin:\$$PATH\" to add pants to your PATH"
+	@echo "You can also use the repo-local './pants' wrapper in all commands."
 
 fmt:    ## Format code
-	pants fmt ::
+	./pants fmt ::
 
 lint:   ## Lint and typecheck
-	pants lint :: && pants typecheck ::
+	./pants lint :: && ./pants check ::
 
 test:   ## Run all tests
-	pants test ::
+	./pants test ::
+
+test-integration: ## Run integration tests against LocalStack (requires dev-up)
+	AWS_REGION?=us-east-1 LOCALSTACK=1 ./pants test "services/**/tests/integration::"
 
 package: ## Build Docker images
-	pants package modules/**:*image
+	./pants package "services/**:*image"
 
 up:     ## Start local stack
 	docker compose up -d --build
@@ -103,20 +140,51 @@ up:     ## Start local stack
 down:   ## Stop local stack
 	docker compose down -v
 
-mod:    ## Test and package a module (e.g., make mod M=api)
-	pants test modules/$(M)/:: && pants package modules/$(M):*image
+dev-up: ## Start LocalStack for local development
+	docker compose -f docker-compose.local.yml up -d localstack redis
+
+dev-down: ## Stop LocalStack for local development
+	docker compose -f docker-compose.local.yml down -v
+
+dev-api-s: ## Run service API locally (e.g., make dev-api-s S=web)
+	python -c "from services.$(S).app.api.main import run; run()"
+
+dev-worker-s: ## Run service worker locally (e.g., make dev-worker-s S=agent)
+	python -c "from services.$(S).app.worker.run import main; main()"
+
+
+dev-stop: ## Stop background dev processes
+	@if [ -f .dev/pids ]; then \
+	  xargs kill -9 < .dev/pids 2>/dev/null || true; \
+	  rm -f .dev/pids; \
+	  echo "Stopped background dev processes"; \
+	else \
+	  echo "No .dev/pids found"; \
+	fi
+
+mod-s:  ## Test and package a service (e.g., make mod-s S=web)
+	./pants test services/$(S)/:: && ./pants package services/$(S):*image
 
 locks:  ## Generate Pants lockfiles
-	pants generate-lockfiles
+	./pants generate-lockfiles
 
 pre-commit-install: ## Install pre-commit hooks
 	pip install pre-commit && pre-commit install
 
 bootstrap: ## Bootstrap foundation infrastructure (requires .env)
+	@echo "Installing pre-commit hooks..."
+	@$(MAKE) pre-commit-install
 	./scripts/bootstrap_foundation.sh
 
-seed-stacks: ## Initialize Pulumi stacks for all modules
-	./scripts/seed_pulumi.sh
+seed-stacks: ## Initialize Pulumi stacks for all services
+	@for dir in services/*/infra/pulumi; do \
+	  [ -d "$$dir" ] || continue; \
+	  svc=$$(basename $$(dirname $$(dirname "$$dir"))); \
+	  echo "-- $$svc (test)"; \
+	  pulumi -C "$$dir" stack select "$(PULUMI_ORG)/$$svc/test" >/dev/null 2>&1 || pulumi -C "$$dir" stack init "$(PULUMI_ORG)/$$svc/test"; \
+	  echo "-- $$svc (prod)"; \
+	  pulumi -C "$$dir" stack select "$(PULUMI_ORG)/$$svc/prod" >/dev/null 2>&1 || pulumi -C "$$dir" stack init "$(PULUMI_ORG)/$$svc/prod"; \
+	done
 
 esc-init: ## Initialize Pulumi ESC environment (optional)
 	./scripts/esc_init.sh
@@ -130,28 +198,14 @@ publish-template: ## Publish repo as GitHub template
 create-project: ## Create new project from template
 	TEMPLATE_REPO=${TEMPLATE_REPO} GITHUB_OWNER=${GITHUB_OWNER} ./scripts/create_project_from_template.sh
 
-new-module: ## Scaffold new module (e.g., make new-module M=orders)
-	M=$(M) ./scripts/new_module.sh && pants generate-lockfiles
+new-service: ## Scaffold new layered service (e.g., make new-service S=search)
+	S=$(S) ./scripts/new_service.sh && ./pants generate-lockfiles
 
-stack-init: ## Initialize Pulumi stack (e.g., make stack-init M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV)
+svc-stack-up: ## Deploy service stack (e.g., make svc-stack-up S=web ENV=test)
+	cd services/$(S)/infra/pulumi && pulumi stack select $(PULUMI_ORG)/$(S)/$(ENV) || pulumi stack init $(PULUMI_ORG)/$(S)/$(ENV) && pulumi up -y
 
-stack-up: ## Deploy module stack (e.g., make stack-up M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack select $(PULUMI_ORG)/$(M)/$(ENV) || pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV) && pulumi up -y
-
-stack-destroy: ## Destroy module stack (e.g., make stack-destroy M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack select $(PULUMI_ORG)/$(M)/$(ENV) && pulumi destroy -y
-
-stack-preview: ## Preview stack changes (e.g., make stack-preview M=api ENV=prod)
-	cd modules/$(M)/infrastructure && pulumi stack select $(PULUMI_ORG)/$(M)/$(ENV) || pulumi stack init $(PULUMI_ORG)/$(M)/$(ENV) && pulumi preview
-
-stack-outputs: ## Show stack outputs (e.g., make stack-outputs M=api ENV=test)
-	cd modules/$(M)/infrastructure && pulumi stack output --json
-
-stack-verify: ## Verify deployed stack (e.g., make stack-verify M=api ENV=test)
-	@base=$$(pulumi -C modules/$(M)/infrastructure stack output alb_dns --stack $(PULUMI_ORG)/$(M)/$(ENV)); \
-	if [ -z "$$base" ]; then echo "No alb_dns output for $(M)/$(ENV)"; exit 1; fi; \
-	chmod +x scripts/verify_http.sh && ./scripts/verify_http.sh http://$$base
+svc-stack-outputs: ## Show service stack outputs (e.g., make svc-stack-outputs S=web ENV=test)
+	cd services/$(S)/infra/pulumi && pulumi stack output --json
 
 gha-ci: ## Trigger CI workflow (requires gh CLI)
 	gh workflow run ci.yml -r dev

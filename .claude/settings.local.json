@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(python -m pip index:*)",
-      "Bash(python -m pip search:*)"
+      "Bash(python -m pip search:*)",
+      "Bash(gh release list:*)",
+      "Bash(chmod:*)",
+      "Bash(gh repo view:*)",
+      "Bash(pre-commit run:*)",
+      "Bash(python:*)",
+      "Bash(yamllint:*)",
+      "Bash(gh run view:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

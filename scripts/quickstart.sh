@@ -23,7 +23,7 @@ case $choice in
     echo -e "\n${COLOR_GREEN}Template Author Setup${COLOR_RESET}"
     echo "This will help you publish this repository as a reusable template."
     echo ""
-    
+
     # Check for .env file
     if [ ! -f .env ]; then
       if [ -f .env.example ]; then
@@ -37,27 +37,27 @@ case $choice in
         read -p "Press Enter after editing .env..."
       fi
     fi
-    
+
     # Source .env
     if [ -f .env ]; then
       export $(grep -v '^#' .env | xargs)
     fi
-    
+
     # Check required vars
     if [ -z "${GITHUB_OWNER:-}" ]; then
       read -p "GitHub owner (username or org): " GITHUB_OWNER
       export GITHUB_OWNER
     fi
-    
+
     if [ -z "${GITHUB_REPO:-}" ]; then
       read -p "Template repository name [pantstack]: " GITHUB_REPO
       GITHUB_REPO=${GITHUB_REPO:-pantstack}
       export GITHUB_REPO
     fi
-    
+
     echo -e "\n${COLOR_GREEN}Publishing template to GitHub...${COLOR_RESET}"
     ./scripts/publish_template.sh
-    
+
     echo -e "\n${COLOR_GREEN}✅ Template published successfully!${COLOR_RESET}"
     echo ""
     echo "Your template is now available at:"
@@ -67,11 +67,11 @@ case $choice in
     echo "  - Cookiecutter: cruft create gh:$GITHUB_OWNER/$GITHUB_REPO"
     echo "  - GitHub: Click 'Use this template' button on GitHub"
     ;;
-    
+
   2)
     echo -e "\n${COLOR_GREEN}Creating New Project from Template${COLOR_RESET}"
     echo ""
-    
+
     # Check for cruft/cookiecutter
     if ! command -v cruft >/dev/null 2>&1 && ! command -v cookiecutter >/dev/null 2>&1; then
       echo -e "${COLOR_YELLOW}Installing cruft (recommended over cookiecutter)...${COLOR_RESET}"
@@ -81,7 +81,7 @@ case $choice in
         pip install --user cruft
       fi
     fi
-    
+
     # Determine tool
     if command -v cruft >/dev/null 2>&1; then
       TOOL="cruft"
@@ -90,7 +90,7 @@ case $choice in
       TOOL="cookiecutter"
       echo "Using cookiecutter"
     fi
-    
+
     # Get template source
     echo ""
     echo "Template source options:"
@@ -98,7 +98,7 @@ case $choice in
     echo "2) Local directory (this repository)"
     echo ""
     read -p "Enter choice (1 or 2): " source_choice
-    
+
     case $source_choice in
       1)
         read -p "GitHub template (e.g., pantstack/mono-template): " template_source
@@ -114,15 +114,15 @@ case $choice in
         exit 1
         ;;
     esac
-    
+
     echo -e "\n${COLOR_GREEN}Creating project from template...${COLOR_RESET}"
     $TOOL create "$template_source"
-    
+
     # Find the created directory
     if [ "$source_choice" = "1" ]; then
       dir=$(ls -td */ | head -n1)
       dir=${dir%/}
-      
+
       echo -e "\n${COLOR_GREEN}✅ Project created successfully!${COLOR_RESET}"
       echo ""
       echo "Next steps:"
@@ -135,7 +135,7 @@ case $choice in
       echo -e "${COLOR_CYAN}git push -u origin dev${COLOR_RESET}"
     fi
     ;;
-    
+
   *)
     echo -e "${COLOR_RED}Invalid choice. Please run again and select 1 or 2.${COLOR_RESET}"
     exit 1

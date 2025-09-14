@@ -29,6 +29,7 @@ jobs:
             build
           requireScope: false
           wip: true
+
       - name: Check for release labels
         id: labels
         uses: actions/github-script@v8

@@ -10,17 +10,21 @@ backend_packages = [
 ]
 
 [python]
-interpreter_constraints = ["==3.11.*"]
+interpreter_constraints = ["==3.12.*"]
 
 [python.resolves]
-platform_core = "lockfiles/platform_core.lock"
-tests         = "lockfiles/tests.lock"
-auth_core     = "lockfiles/auth_core.lock"
-auth_api      = "lockfiles/auth_api.lock"
-orders_core   = "lockfiles/orders_core.lock"
-orders_api    = "lockfiles/orders_api.lock"
-api_core      = "lockfiles/api_core.lock"
-api_api       = "lockfiles/api_api.lock"
+auth_core  = "lockfiles/auth_core.lock"
+auth_api   = "lockfiles/auth_api.lock"
+web_core   = "lockfiles/web_core.lock"
+web_api    = "lockfiles/web_api.lock"
+agent_core = "lockfiles/agent_core.lock"
 
 # Flake8 configuration
 # Note: Additional flake8 plugins should be added to the requirements files
+
+[source]
+root_patterns = ["/"]
+
+[mypy]
+# Relax type checking for external libs that lack type hints in this template
+args = ["--ignore-missing-imports"]
