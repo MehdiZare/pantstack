@@ -14,7 +14,15 @@
       "WebSearch",
       "Bash(git push:*)",
       "Bash(git stash:*)",
-      "Bash(mkdocs build:*)"
+      "Bash(mkdocs build:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh pr list:*)",
+      "Bash(git fetch:*)",
+      "Bash(git log:*)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "ask": []
