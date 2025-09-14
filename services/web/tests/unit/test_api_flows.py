@@ -1,10 +1,12 @@
+from typing import Any
+
 from services.web.app.api.main import cancel, job_status, schedule_job_form
 
 
 class FakeQueue:
     def __init__(self, cid: str = "abc"):
         self.cid = cid
-        self.published = []
+        self.published: list[tuple[str, dict[str, Any]]] = []
 
     def publish(self, job_type: str, params: dict) -> str:
         self.published.append((job_type, params))
@@ -14,7 +16,7 @@ class FakeQueue:
 class FakeRepo:
     def __init__(self, status: dict | None = None):
         self.status_by_id = status or {}
-        self.canceled = []
+        self.canceled: list[str] = []
 
     def get_status(self, cid: str):
         return self.status_by_id.get(cid)
