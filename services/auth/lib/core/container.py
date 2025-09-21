@@ -16,11 +16,9 @@ from services.auth.lib.modules.users.services import UserService
 class CoreContainer(containers.DeclarativeContainer):
     """Core infrastructure container."""
 
-    # Configuration with smart loading
+    # Configuration
     config = providers.Singleton(
-        ConfigLoader.load,
-        config_class=AuthConfig,
-        service_name="auth",
+        AuthConfig
     )
 
     # Infrastructure clients
@@ -84,38 +82,34 @@ class ServiceContainer(containers.DeclarativeContainer):
     )
 
 
-class AuthContainer(containers.DeclarativeContainer):
+class ApplicationContainer(containers.DeclarativeContainer):
     """Main auth service container."""
 
     # Sub-containers
     core = providers.Container(CoreContainer)
 
-    repositories = providers.Container(
+    repository = providers.Container(
         RepositoryContainer,
         core=core,
     )
 
-    services = providers.Container(
+    service = providers.Container(
         ServiceContainer,
         core=core,
-        repositories=repositories,
+        repositories=repository,
     )
 
-    # Wiring configuration
-    wiring_config = containers.WiringConfiguration(
-        modules=[
-            "services.auth.src.api.routes",
-            "services.auth.src.tasks.user_tasks",
-            "services.auth.src.tasks.email_tasks",
-        ]
-    )
+    async def shutdown_resources(self):
+        """Shutdown all resources."""
+        # Add cleanup logic here if needed
+        pass
 
 
 # Global container instance
-_container: AuthContainer | None = None
+_container: ApplicationContainer | None = None
 
 
-def get_container() -> AuthContainer:
+def get_container() -> ApplicationContainer:
     """Get or create the container instance.
 
     Returns:
@@ -123,12 +117,11 @@ def get_container() -> AuthContainer:
     """
     global _container
     if _container is None:
-        _container = AuthContainer()
-        _container.wire(modules=_container.wiring_config.modules)
+        _container = ApplicationContainer()
     return _container
 
 
-def get_service_container() -> AuthContainer:
+def get_service_container() -> ApplicationContainer:
     """FastAPI dependency for getting the container.
 
     Returns:

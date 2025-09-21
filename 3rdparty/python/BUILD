@@ -1,3 +1,10 @@
+# Shared requirements for all services
+python_requirements(
+    name="shared_reqs",
+    source="requirements-shared.txt",
+    resolve="python-default",
+)
+
 python_requirements(name="auth_core_reqs", source="requirements-auth-core.txt", resolve="auth_core")
 python_requirements(name="auth_api_reqs", source="requirements-auth-api.txt", resolve="auth_api")
 

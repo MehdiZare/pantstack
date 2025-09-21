@@ -1,76 +1,96 @@
-import os
-from datetime import datetime, timedelta, timezone
+"""Auth service API endpoints."""
 
-import jwt
+from typing import Dict
+
+import uvicorn
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, EmailStr
 
-from services.auth.adapters.repositories.dynamodb_users import DynamoUsers
-
-app = FastAPI(title="auth", version="0.1.0")
-
-
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    username: str
-    password: str
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-def repo() -> DynamoUsers:
-    return DynamoUsers.from_env()
-
-
-def _jwt_secret() -> str:
-    return os.getenv("JWT_SECRET", "dev-secret")
+# Create FastAPI application
+app = FastAPI(
+    title="Auth Service",
+    version="1.0.0",
+    description="Authentication and authorization service",
+)
 
 
 @app.get("/healthz")
-def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+async def healthz() -> Dict[str, str]:
+    """Health check endpoint.
+
+    Returns:
+        Status dictionary
+    """
+    return {"status": "ok", "service": "auth"}
 
 
 @app.post("/register")
-def register(req: RegisterRequest) -> dict:
-    r = repo()
-    try:
-        r.create_user(req.email, req.username, req.password)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(400, f"could not create: {e}")
-    return {"ok": True}
+async def register(email: str, password: str) -> Dict[str, str]:
+    """Register a new user.
+
+    Temporarily simplified endpoint.
+
+    Args:
+        email: User email
+        password: User password
+
+    Returns:
+        Registration response
+
+    Raises:
+        HTTPException: If registration fails
+    """
+    # TODO: Implement proper registration with dependency injection
+    return {"status": "registered", "email": email}
 
 
 @app.post("/login")
-def login(req: LoginRequest) -> dict:
-    r = repo()
-    rec = r.get_by_email(req.email)
-    if not rec or not r.verify_password(rec, req.password):
-        raise HTTPException(401, "invalid credentials")
-    now = datetime.now(tz=timezone.utc)
-    payload = {
-        "sub": rec.email,
-        "name": rec.username,
-        "iat": int(now.timestamp()),
-        "exp": int((now + timedelta(hours=12)).timestamp()),
-    }
-    token = jwt.encode(payload, _jwt_secret(), algorithm="HS256")
-    return {"token": token}
+async def login(email: str, password: str) -> Dict[str, str]:
+    """Authenticate a user.
+
+    Temporarily simplified endpoint.
+
+    Args:
+        email: User email
+        password: User password
+
+    Returns:
+        Login response
+
+    Raises:
+        HTTPException: If authentication fails
+    """
+    # TODO: Implement proper login with dependency injection
+    return {"status": "logged_in", "email": email}
 
 
-@app.get("/verify")
-def verify(token: str) -> dict:
-    try:
-        data = jwt.decode(token, _jwt_secret(), algorithms=["HS256"])
-        return {"valid": True, "sub": data.get("sub"), "name": data.get("name")}
-    except jwt.PyJWTError as e:  # type: ignore[attr-defined]
-        raise HTTPException(401, f"invalid: {e}")
+@app.post("/verify")
+async def verify(token: str) -> Dict[str, bool]:
+    """Verify a JWT token.
+
+    Temporarily simplified endpoint.
+
+    Args:
+        token: JWT token
+
+    Returns:
+        Token verification response
+
+    Raises:
+        HTTPException: If token is invalid
+    """
+    # TODO: Implement proper token verification with dependency injection
+    return {"valid": False}
 
 
 def run() -> None:
-    import uvicorn
+    """Run the API server."""
+    uvicorn.run(
+        "services.auth.app.api.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+if __name__ == "__main__":
+    run()

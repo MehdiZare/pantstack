@@ -9,6 +9,11 @@ python_tests(
     tags=["integration", "localstack", "slow"],
     timeout=300,
     resolve="test",
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+        "//3rdparty/python:test_reqs#boto3",
+        "//3rdparty/python:test_reqs#requests",
+    ],
 )
 
 python_tests(
@@ -17,6 +22,10 @@ python_tests(
     tags=["integration", "supabase", "slow"],
     timeout=300,
     resolve="test",
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+        "//3rdparty/python:test_reqs#requests",
+    ],
 )
 
 python_tests(
@@ -25,6 +34,10 @@ python_tests(
     tags=["integration", "docker", "slow"],
     timeout=300,
     resolve="test",
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+        "//3rdparty/python:test_reqs#requests",
+    ],
 )
 
 python_tests(
@@ -33,6 +46,11 @@ python_tests(
     tags=["integration", "e2e", "slow"],
     timeout=600,
     resolve="test",
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+        "//3rdparty/python:test_reqs#boto3",
+        "//3rdparty/python:test_reqs#requests",
+    ],
 )
 
 python_tests(

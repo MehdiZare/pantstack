@@ -8,6 +8,51 @@ Pantstack is a batteries-included monorepo template for layered services with Pa
 - CI/CD for lint, typecheck, tests, package, deploy, and PR preview stacks
 - Pulumi Cloud (Free) backend; optional ESC (Environments) integration
 
+## Testing
+
+### Running Tests with Pants
+
+All tests in this project are managed through the Pants build system.
+
+```bash
+# Bootstrap Pants (first time only)
+make boot
+
+# Run all tests
+make test
+
+# Run specific test targets
+pants test services/auth::           # All auth service tests
+pants test tests/integration::       # All integration tests
+pants test tests/template::          # Template validation tests
+
+# Run tests with coverage
+pants test --test-use-coverage services/auth::
+
+# Run tests by tag
+pants test --tag=unit ::             # Only unit tests
+pants test --tag=integration ::      # Only integration tests
+```
+
+### Test Organization
+
+- **Unit Tests**: Located in `services/*/tests/unit/` - Fast, isolated tests
+- **Integration Tests**: Located in `tests/integration/` - Tests with external dependencies
+- **Template Tests**: Located in `tests/template/` - Validate template structure
+
+### Common Test Issues
+
+1. **Import Errors**: Pants manages dependencies automatically. If you see import errors:
+   - Check that the dependency is listed in the appropriate requirements file
+   - Ensure the BUILD file includes the correct dependencies
+   - Run `make locks` to regenerate lockfiles after adding dependencies
+
+2. **Sandbox Issues**: Some tests require filesystem access. These tests have `run_goal_use_sandbox=False` in their BUILD configuration.
+
+3. **Dependency Ambiguity**: If Pants reports ambiguous dependencies:
+   - Add explicit dependencies to the test's BUILD configuration
+   - Example: `"//3rdparty/python:test_reqs#requests"`
+
 ## Prerequisites
 
 ### Automated Setup (Recommended)

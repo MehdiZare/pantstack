@@ -1,6 +1,4 @@
 """Unit tests for auth repository layer."""
-import pytest
-pytest.skip("Skipping due to import path issues - needs refactoring", allow_module_level=True)
 
 from unittest.mock import MagicMock, patch
 import pytest

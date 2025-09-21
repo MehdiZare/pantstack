@@ -69,6 +69,21 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class TokenVerifyRequest(BaseModel):
+    """Token verification request schema."""
+
+    token: str
+
+
+class TokenVerifyResponse(BaseModel):
+    """Token verification response schema."""
+
+    valid: bool
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    expires_at: Optional[datetime] = None
+
+
 class PasswordChangeRequest(BaseModel):
     """Password change request schema."""
 

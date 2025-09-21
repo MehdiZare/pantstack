@@ -40,6 +40,94 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 * Make sure your code follows the existing code style.
 * Write a convincing description of your PR and why we should land it.
 
+## Writing Tests
+
+### Test Structure
+
+Tests are organized by type and scope:
+
+```
+services/{service_name}/tests/
+├── unit/           # Fast, isolated unit tests
+├── integration/    # Tests with dependencies
+└── conftest.py     # Shared pytest fixtures
+
+tests/
+├── integration/    # Cross-service integration tests
+├── template/       # Template validation tests
+└── e2e/           # End-to-end tests
+```
+
+### Writing Unit Tests
+
+Unit tests should be fast and isolated:
+
+```python
+# services/auth/tests/unit/test_services.py
+def test_user_creation(mock_repository):
+    """Test user creation logic."""
+    service = UserService(repository=mock_repository)
+    user = service.create_user("test@example.com", "password")
+    assert user.email == "test@example.com"
+    mock_repository.create.assert_called_once()
+```
+
+### Writing Integration Tests
+
+Integration tests can use external dependencies:
+
+```python
+# tests/integration/test_auth_flow.py
+@pytest.mark.integration
+def test_full_auth_flow(test_client, test_database):
+    """Test complete authentication flow."""
+    # Create user
+    response = test_client.post("/auth/register", json={...})
+    assert response.status_code == 201
+
+    # Login
+    response = test_client.post("/auth/login", json={...})
+    assert "access_token" in response.json()
+```
+
+### Configuring Tests in BUILD Files
+
+Each test file needs proper BUILD configuration:
+
+```python
+# services/auth/tests/unit/BUILD
+python_tests(
+    name="unit",
+    sources=["*.py"],
+    resolve="auth_api",  # Use service's resolve
+    dependencies=[
+        ":test_utils",   # Test fixtures
+        "//services/auth:auth_core",
+        "//3rdparty/python:auth_api_reqs#pytest",
+    ],
+)
+```
+
+For tests requiring filesystem access:
+
+```python
+python_tests(
+    name="template_tests",
+    sources=["*.py"],
+    run_goal_use_sandbox=False,  # Disable sandbox
+    dependencies=[...],
+)
+```
+
+### Test Best Practices
+
+1. **Use descriptive test names**: `test_user_creation_with_duplicate_email_raises_error`
+2. **One assertion per test**: Keep tests focused
+3. **Use fixtures**: Share setup code via pytest fixtures
+4. **Mock external dependencies**: Use `unittest.mock` for unit tests
+5. **Tag your tests**: Add tags in BUILD files for selective execution
+6. **Clean up resources**: Use try/finally or context managers
+
 ## Development Process
 
 1. **Fork and Clone**

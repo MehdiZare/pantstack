@@ -359,3 +359,45 @@ class AuthService:
             refresh_token=refresh_token,
             expires_in=self.config.auth_module.access_token_expire_minutes * 60,
         )
+
+    async def verify_token(self, token: str) -> "TokenVerifyResponse":
+        """Verify a JWT token.
+
+        Args:
+            token: JWT token to verify
+
+        Returns:
+            Token verification response
+
+        Raises:
+            ValueError: If token is invalid
+        """
+        from datetime import datetime
+        from stack.libs.shared.core.security import decode_access_token
+        from services.auth.lib.modules.auth.schemas import TokenVerifyResponse
+
+        try:
+            # Decode the token
+            payload = decode_access_token(
+                token,
+                self.config.jwt_secret_key,
+                self.config.jwt_algorithm
+            )
+
+            # Check if token is blacklisted
+            if await self.auth_repo.is_token_blacklisted(token):
+                raise ValueError("Token has been revoked")
+
+            return TokenVerifyResponse(
+                valid=True,
+                user_id=payload.get("sub"),
+                email=payload.get("email"),
+                expires_at=datetime.fromtimestamp(payload.get("exp", 0))
+            )
+        except Exception:
+            return TokenVerifyResponse(
+                valid=False,
+                user_id=None,
+                email=None,
+                expires_at=None
+            )

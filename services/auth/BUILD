@@ -1,15 +1,8 @@
 python_sources(
     name="auth_core",
-    sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py", "lib/**/*.py"],
+    sources=["lib/**/*.py", "public/**/*.py"],
     resolve="auth_core",
     dependencies=["stack/libs/shared", "3rdparty/python:auth_core_reqs"],
-    overrides={
-        "adapters/repositories/**/*.py": {
-            "dependencies": [
-                "3rdparty/python:auth_core_reqs#boto3",
-            ]
-        },
-    },
 )
 
 python_sources(

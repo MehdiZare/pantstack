@@ -1,1 +1,0 @@
-"""API routes for auth service."""
