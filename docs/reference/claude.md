@@ -130,7 +130,7 @@ Each service under `services/` contains:
 - `infra/pulumi/` - Pulumi IaC code
 - `tests/` - Unit/integration/E2E
 
-Each module under `modules/` contains:
+Each service under `services/` contains:
 - `BUILD` - Pants build configuration defining resolves and dependencies
 - `backend/` - Service implementation
   - `api/` - FastAPI application entry point
@@ -190,11 +190,11 @@ Tests are run via Pants with module-specific test resolves:
 # Run all tests
 pants test ::
 
-# Run specific module tests
-pants test modules/api/::
+# Run specific service tests
+pants test services/api/::
 
 # Run with coverage
-pants test --test-use-coverage modules/api/::
+pants test --test-use-coverage services/api/::
 ```
 
 ## Module Public Facades

@@ -37,7 +37,7 @@ def main() -> None:
                     try:
                         payload = json.loads(body)
                         detail = payload.get("detail") or {}
-                        # Normalize to legacy shape for process_message
+                        # Normalize to expected shape for process_message
                         m = {
                             "Body": detail.get("job_type"),
                             "MessageAttributes": {

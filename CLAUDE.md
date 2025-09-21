@@ -5,13 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Overview
 
 This is Pantstack, a batteries-included monorepo template using:
-- **Pants** build system for module management and dependency resolution
+- **Pants** build system for service management and dependency resolution
 - **Cookiecutter/Cruft** for template instantiation
 - **FastAPI** for service APIs
 - **Pulumi** for Infrastructure as Code on AWS
 - **GitHub Actions** for CI/CD
 
-The template provides true module independence with per-module infrastructure, packaging, and tests, while allowing safe cross-module reuse via public facades.
+The template provides true service independence with per-service infrastructure, packaging, tests, and dedicated Pants resolvers, while allowing safe cross-service reuse via public facades.
 
 ## Template Usage
 
@@ -57,7 +57,7 @@ make create-project     # Remote template (requires env vars)
 
 ### Development Workflow
 ```bash
-# Install Pants build system (version 2.28.0)
+# Install Pants build system
 make boot
 # Add to PATH: export PATH="$HOME/.local/bin:$PATH"
 
@@ -68,20 +68,20 @@ make lint
 # Run all tests
 make test
 
-# Test and package a specific module
-make mod M=api
+# Test and package a specific service
+make mod S=api
 
 # Generate/update Pants lockfiles
 make locks
 ```
 
-### Module Management
+### Service Management
 ```bash
-# Create a new module (scaffolds structure + BUILD files)
-make new-module M=orders
+# Create a new service (scaffolds structure + BUILD files)
+make new-service S=orders
 
-# Create module in feature branch with PR
-make gh-new-module-pr M=orders
+# Create service in feature branch with PR
+make gh-new-service-pr S=orders
 ```
 
 ### Local Development
@@ -99,47 +99,98 @@ make down
 # Requires filled .env file
 make bootstrap
 
-# Initialize Pulumi stacks for all modules
+# Initialize Pulumi stacks for all services
 make seed-stacks
 
-# Deploy a module stack locally
-make stack-up M=api ENV=test
+# Deploy a service stack locally
+make stack-up S=api ENV=test
 
 # Preview changes before deployment
-make stack-preview M=api ENV=prod
+make stack-preview S=api ENV=prod
 
 # Verify deployed stack
-make stack-verify M=api ENV=test
+make stack-verify S=api ENV=test
 
 # Trigger GitHub Actions deployment
-make gha-deploy M=api ENV=prod
+make gha-deploy S=api ENV=prod
 ```
 
 ## Architecture
 
-### Module Structure
-Each module under `modules/` contains:
-- `BUILD` - Pants build configuration defining resolves and dependencies
-- `backend/` - Service implementation
-  - `api/` - FastAPI application entry point
-  - `service/` - Business logic
-  - `worker/` - Async worker if needed
-  - `schemas/` - Data models
-  - `public/` - Public facade for cross-module use
-  - `tests/` - Unit and integration tests
-- `infrastructure/` - Pulumi IaC code (`__main__.py`)
+### Repository Structure
+
+```
+pantstack/
+├── services/              # Independent microservices
+│   ├── agent/            # Agent service with worker capabilities
+│   ├── auth/             # Authentication service
+│   ├── event_backbone/   # Event processing infrastructure
+│   ├── web/              # Web application service
+│   └── api/              # API gateway service
+├── entry_points/         # Docker entry points & service aggregation
+│   ├── api/              # Main API that aggregates all services
+│   ├── celery_worker/    # Celery worker entry point
+│   └── event_processor/  # Event processing entry point
+├── shared/               # Cross-service shared libraries
+│   ├── core/             # Core utilities and abstractions
+│   ├── utils/            # Common utility functions
+│   └── tests/            # Shared test utilities
+├── stack/                # Platform-level infrastructure & libraries
+│   ├── infra/            # Infrastructure as Code
+│   │   ├── foundation/   # AWS foundation (ECR, OIDC, IAM roles)
+│   │   └── components/   # Reusable infrastructure components
+│   ├── libs/shared/      # Stack-specific shared libraries
+│   ├── agents/           # Agent configurations
+│   └── events/           # Event infrastructure libraries
+├── 3rdparty/python/      # Python dependencies management
+├── tests/                # Repository-wide tests
+│   ├── integration/      # Cross-service integration tests
+│   └── template/         # Template validation tests
+├── cli/                  # CLI tools for repo management
+└── scripts/              # Build and deployment scripts
+```
+
+### Service Structure
+Each service under `services/` follows Domain-Driven Design and contains:
+```
+services/<service_name>/
+├── app/                  # Application layer
+│   ├── api/              # FastAPI endpoints and routers
+│   │   └── main.py       # Service entry point
+│   └── worker/           # Background workers (Celery, etc.)
+│       └── run.py        # Worker entry point
+├── domain/               # Core business logic (DDD)
+│   ├── models/           # Domain models and entities
+│   ├── services/         # Domain services
+│   └── ports/            # Interface definitions (hexagonal architecture)
+├── adapters/             # External integrations
+│   └── repositories/     # Data persistence adapters
+├── public/               # Public API exposed to other services
+│   └── __init__.py       # Service facade
+├── infrastructure/       # Service-specific IaC (Pulumi)
+│   ├── Pulumi.yaml       # Pulumi project config
+│   └── __main__.py       # Infrastructure definitions
+├── lib/                  # Service-specific libraries
+├── tests/                # Service tests
+│   ├── unit/             # Unit tests
+│   └── integration/      # Integration tests
+├── BUILD                 # Pants build configuration
+├── Dockerfile.api        # API container definition
+└── Dockerfile.worker     # Worker container definition
+```
 
 ### Dependency Resolution
-The monorepo uses Pants resolves for isolation:
-- Each module has separate `{module}_core` and `{module}_api` resolves
-- Dependencies defined in `3rdparty/python/requirements-{module}-{layer}.txt`
+The monorepo uses Pants resolves for complete service isolation:
+- Each service has separate `{service}_core` and `{service}_api` resolves
+- Dependencies defined in `3rdparty/python/requirements-{service}-{layer}.txt`
 - Lockfiles generated to `lockfiles/` directory
-- Cross-module dependencies allowed only through public facades
+- Cross-service dependencies allowed only through public facades
+- Services are truly independent with their own Python environments
 
 ### Image Tagging Strategy
 - Single ECR repository per project
-- Images tagged: `{module}-{branch}-{sha}` and `{module}-v{version}`
-- Worker images: `{module}-worker-{branch}-{sha}`
+- Images tagged: `{service}-{branch}-{sha}` and `{service}-v{version}`
+- Worker images: `{service}-worker-{branch}-{sha}`
 
 ## CI/CD Pipeline
 
@@ -157,8 +208,8 @@ The monorepo uses Pants resolves for isolation:
 
 ### Versioning
 Uses semantic-release with conventional commits:
-- `feat(module):` → minor bump
-- `fix(module):` → patch bump
+- `feat(service):` → minor bump
+- `fix(service):` → patch bump
 - `feat!:` → major bump (breaking change)
 - Override with labels: `release:major`, `release:minor`, `release:patch`, `release:skip`
 
@@ -169,40 +220,66 @@ Uses semantic-release with conventional commits:
 - `.env` - Environment variables (copy from `.env.example`)
 - `docker-compose.yml` - Local development stack
 - `.releaserc.json` - Semantic release configuration
-- `Pulumi.yaml` files in each module's infrastructure directory
+- `Pulumi.yaml` files in each service's infrastructure directory
 
 ## Testing Approach
 
-Tests are run via Pants with module-specific test resolves:
+Tests are run via Pants with service-specific test resolves:
 ```bash
 # Run all tests
 pants test ::
 
-# Run specific module tests
-pants test modules/api/::
+# Run specific service tests
+pants test services/auth::
 
 # Run with coverage
-pants test --test-use-coverage modules/api/::
+pants test --test-use-coverage services/web::
+
+# Run integration tests
+pants test tests/integration::
 ```
 
-## Module Public Facades
+## Service Public Facades
 
-Modules expose public APIs through `backend/public/` directories. Other modules can depend on these facades but not on internal implementations. This ensures:
-- Clear module boundaries
-- Stable inter-module contracts
-- Independent module evolution
+Services expose public APIs through `public/` directories. Other services can depend on these facades but not on internal implementations. This ensures:
+- Clear service boundaries
+- Stable inter-service contracts
+- Independent service evolution
+- True microservice isolation
 
 ## Infrastructure Patterns
 
-Each module's infrastructure (`modules/{module}/infrastructure/__main__.py`) typically includes:
+Each service's infrastructure (`services/{service}/infrastructure/__main__.py`) typically includes:
 - ECS Fargate services with ALB
 - SQS queues for async processing
 - S3 buckets for storage
-- Module-specific VPC and networking
+- Service-specific VPC and networking
 - IAM roles with least privilege
 
-Foundation infrastructure (`platform/infra/foundation/`) provides:
+Foundation infrastructure (`stack/infra/foundation/`) provides:
 - ECR repository
 - GitHub OIDC provider
 - CI/CD IAM roles
 - Shared networking components (if needed)
+
+## Service Creation
+
+To create a new service:
+```bash
+# Scaffold a new service with all necessary structure
+make new-service S=orders
+
+# This creates:
+# - services/orders/ with complete DDD structure
+# - BUILD file with proper Pants configuration
+# - Infrastructure templates
+# - Test scaffolding
+```
+
+## Key Principles
+
+1. **Service Independence**: Each service is a bounded context with its own Pants resolver
+2. **Public Facades**: Inter-service communication only through `public/` directories
+3. **Shared Libraries**: Common code lives in `shared/` and `stack/libs/`
+4. **Entry Point Aggregation**: `entry_points/api/` discovers and aggregates all service APIs
+5. **Infrastructure Isolation**: Each service manages its own cloud resources

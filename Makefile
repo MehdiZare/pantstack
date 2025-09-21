@@ -3,9 +3,9 @@
 
 .PHONY: help quickstart new-project template-help init-template seed-labels template-setup docs-serve docs-build docs-publish \
 	boot fmt lint test up down dev-up dev-down package mod mod-s locks pre-commit-install bootstrap \
-	new-module stack-init stack-up stack-destroy stack-preview stack-outputs \
+	stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
-	gh-new-module-pr test-service-lifecycle test-service-integration test-create-cleanup clean-test-services
+	gh-new-service-pr test-service-lifecycle test-service-integration test-create-cleanup clean-test-services
 
 help: ## Show this help message
 	@echo "Pantstack Monorepo Commands:"
@@ -331,14 +331,14 @@ gh-new-branch: ## Create new git branch (e.g., make gh-new-branch B=feature/x)
 gh-open-pr: ## Open PR (e.g., make gh-open-pr B=feature/x BASE=dev TITLE="...")
 	gh pr create --base $(BASE) --head $(B) --title "$(TITLE)" --body "$(BODY)"
 
-gh-new-module-pr: ## Create module PR (e.g., make gh-new-module-pr M=orders)
-	@b=$${B:-feature/add-$(M)-module}; \
+gh-new-service-pr: ## Create service PR (e.g., make gh-new-service-pr S=orders)
+	@b=$${B:-feature/add-$(S)-service}; \
 	git checkout -b $$b; \
-	M=$(M) ./scripts/new_module.sh; \
+	S=$(S) ./scripts/new_service.sh; \
 	git add -A; \
-	git commit -m "feat($(M)): scaffold module"; \
+	git commit -m "feat($(S)): scaffold service"; \
 	git push -u origin $$b; \
-	gh pr create --base dev --head $$b --title "feat($(M)): scaffold module" --body "Scaffold $(M) module via template script."
+	gh pr create --base dev --head $$b --title "feat($(S)): scaffold service" --body "Scaffold $(S) service via template script."
 
 # Service Lifecycle Testing
 test-service-lifecycle: ## Run service lifecycle tests with cleanup
@@ -364,13 +364,69 @@ clean-test-services: ## Clean any leftover test services
 	@echo "🧹 Cleaning test services..."
 	@find services -type d -name "test_*" -exec rm -rf {} + 2>/dev/null || true
 	@find services -type d -name "temp_*" -exec rm -rf {} + 2>/dev/null || true
+	@find services -type d -name "tmp_test_*" -exec rm -rf {} + 2>/dev/null || true
 	@if [ -f ./pants ]; then ./pants --no-watch-filesystem gc 2>/dev/null || true; fi
 	@echo "✨ Test services cleaned"
 
+# Safe CLI Testing Commands
+test-cli-safe: ## Run CLI tests with automatic cleanup
+	@echo "🧪 Running CLI tests with cleanup..."
+	@pytest tests/cli -m "not destructive" --tb=short || true
+	@make clean-test-artifacts
+	@echo "✅ CLI tests complete with cleanup"
+
+test-cli-verify: ## Run tests and verify cleanup
+	@echo "🔍 Checking for test artifacts before..."
+	@python -c "from tests.cli.cleanup import TestCleanupManager; from pathlib import Path; m = TestCleanupManager(Path('.')); r = m.verify_cleanup(); print('  No artifacts found') if not r else print(f'  Found: {r}')"
+	@echo "🧪 Running CLI tests..."
+	@pytest tests/cli --tb=short || true
+	@echo "✅ Verifying cleanup..."
+	@python -c "from tests.cli.cleanup import TestCleanupManager; from pathlib import Path; m = TestCleanupManager(Path('.')); r = m.verify_cleanup(); exit(1) if r else print('  ✨ All clean!')"
+
+clean-test-artifacts: ## Clean all test artifacts (services, containers, stacks)
+	@echo "🧹 Cleaning all test artifacts..."
+	@python -c "from tests.cli.cleanup import TestCleanupManager; from pathlib import Path; m = TestCleanupManager(Path('.')); results = m.clean_all(); print(f'  Cleaned: {sum(results.values())} items')"
+
+clean-all-test-artifacts: ## Emergency cleanup of all test artifacts
+	@echo "🚨 Emergency cleanup - removing all test artifacts..."
+	@find services -type d -name "test_*" -exec rm -rf {} + 2>/dev/null || true
+	@find services -type d -name "temp_*" -exec rm -rf {} + 2>/dev/null || true
+	@find services -type d -name "tmp_test_*" -exec rm -rf {} + 2>/dev/null || true
+	@docker ps -a --filter "name=test_" -q | xargs docker rm -f 2>/dev/null || true
+	@docker ps -a --filter "name=temp_" -q | xargs docker rm -f 2>/dev/null || true
+	@pulumi stack ls --json 2>/dev/null | jq -r '.[] | select(.name | contains("test-")) | .name' | xargs -I {} pulumi stack rm {} --force --yes 2>/dev/null || true
+	@if [ -f ./pants ]; then ./pants --no-watch-filesystem gc 2>/dev/null || true; fi
+	@echo "✨ Emergency cleanup complete"
+
+check-test-artifacts: ## Check for any test artifacts
+	@echo "🔍 Checking for test artifacts..."
+	@python -c "from tests.cli.cleanup import TestCleanupManager; from pathlib import Path; m = TestCleanupManager(Path('.')); r = m.verify_cleanup(); print('  ✅ No artifacts found') if not r else (print(f'  ⚠️  Found artifacts: {r}'), exit(1))"
+
+# CLI testing commands using appropriate execution modes
+test-cli-integration: ## Run CLI integration tests with filesystem access
+	@echo "🔧 Running integration tests with filesystem access..."
+	@./pants run tests/cli:integration_test_runner
+	@make verify-cleanup
+
+test-cli-unit: ## Run CLI unit tests in sandbox
+	@echo "📦 Running unit tests in sandbox..."
+	@./pants test cli/tests:: --tag=unit
+
+test-cli-all: ## Run all CLI tests (unit in sandbox, integration with filesystem access)
+	@echo "📦 Running unit tests in sandbox..."
+	@./pants test cli/tests:: --tag=unit
+	@echo "🔧 Running integration tests with filesystem access..."
+	@./pants run tests/cli:integration_test_runner
+	@make verify-cleanup
+
+verify-cleanup: ## Verify test cleanup
+	@echo "🧹 Verifying cleanup..."
+	@python -c "from tests.cli.cleanup import TestCleanupManager; from pathlib import Path; m = TestCleanupManager(Path('.')); r = m.verify_cleanup(); print('  ✅ Clean!') if not r else print(f'  ⚠️  Found: {r}')"
+
 verify-dev: ## Verify test environment (e.g., make verify-dev MS="api orders")
 	@chmod +x scripts/verify_http.sh; \
-	for m in $${MS:-$$(ls modules)}; do \
-	  base=$$(pulumi -C modules/$$m/infrastructure stack output alb_dns --stack $(PULUMI_ORG)/$$m/test 2>/dev/null || true); \
+	for m in $${MS:-$$(ls services)}; do \
+	  base=$$(pulumi -C services/$$m/infrastructure stack output alb_dns --stack $(PULUMI_ORG)/$$m/test 2>/dev/null || true); \
 	  if [ -n "$$base" ]; then \
 	    echo "Verifying $$m (test) at http://$$base"; \
 	    ./scripts/verify_http.sh http://$$base || exit 1; \
@@ -381,8 +437,8 @@ verify-dev: ## Verify test environment (e.g., make verify-dev MS="api orders")
 
 verify-prod: ## Verify production environment (e.g., make verify-prod MS="api")
 	@chmod +x scripts/verify_http.sh; \
-	for m in $${MS:-$$(ls modules)}; do \
-	  base=$$(pulumi -C modules/$$m/infrastructure stack output alb_dns --stack $(PULUMI_ORG)/$$m/prod 2>/dev/null || true); \
+	for m in $${MS:-$$(ls services)}; do \
+	  base=$$(pulumi -C services/$$m/infrastructure stack output alb_dns --stack $(PULUMI_ORG)/$$m/prod 2>/dev/null || true); \
 	  if [ -n "$$base" ]; then \
 	    echo "Verifying $$m (prod) at http://$$base"; \
 	    ./scripts/verify_http.sh http://$$base || exit 1; \

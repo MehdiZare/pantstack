@@ -64,7 +64,7 @@ make check-tools  # Verify all tools are installed
 ```
 
 ### Required Tools
-- **Python 3.12** (repo uses Python 3.12.*)
+- **Python 3.11+** (3.11, 3.12, or newer)
 - **uv** - Fast Python package installer
 - **Docker & Docker Compose** - Container runtime
 - **AWS CLI** - AWS service management
@@ -181,10 +181,10 @@ make new-project  # Interactive prompts for all values
 ## Commands You’ll Use Often
 
 - `make new-service S=<name>` — scaffold a new layered service under `services/<name>`
-- `make mod-s S=web` — test and package a service
-- `make svc-stack-up S=web ENV=test` — deploy a service stack
-- `make svc-stack-outputs S=web ENV=test` — show stack outputs
-- `make gha-deploy M=web ENV=prod` — trigger deploy workflow
+- `make mod S=web` — test and package a service
+- `make stack-up S=web ENV=test` — deploy a service stack
+- `make stack-outputs S=web ENV=test` — show stack outputs
+- `make gha-deploy S=web ENV=prod` — trigger deploy workflow
 
 Note: Pants is installed via the official bootstrap script. Local targets use `./pants`.
 

@@ -13,11 +13,11 @@ backend_packages = [
 ]
 
 [python]
-interpreter_constraints = [">=3.11,<3.12"]
+interpreter_constraints = [">=3.11"]
 enable_resolves = true
 
 [python-bootstrap]
-search_path = ["<PATH>", "/opt/homebrew/opt/pyenv/versions/3.11.9/bin", "/usr/local/bin", "/opt/homebrew/bin"]
+search_path = ["<PATH>", "/opt/homebrew/opt/pyenv/versions/3.12.11/bin", "/usr/local/bin", "/opt/homebrew/bin"]
 
 [python.resolves]
 # Service resolves
@@ -42,7 +42,6 @@ test = "lockfiles/test.lock"
 root_patterns = ["/"]
 
 [mypy]
-# Relax type checking for external libs that lack type hints in this template
 args = ["--ignore-missing-imports"]
 
 [python-infer]
