@@ -1,0 +1,11 @@
+# Requirements for integration testing
+-r requirements-test.txt
+-r requirements-shared.txt
+
+# Integration testing specific tools
+docker>=6.1,<7  # Docker integration
+requests>=2.31,<3  # HTTP client for API testing
+boto3>=1.28,<2  # AWS services testing
+redis>=4.6,<5  # Redis integration testing
+psycopg2-binary>=2.9,<3  # Database integration testing
+locust>=2.16,<3  # Performance testing

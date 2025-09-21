@@ -1,0 +1,7 @@
+# Requirements for testing setup tools, CLI, and scripts
+-r requirements-test.txt
+
+# Additional tools for testing CLI and setup scripts
+click>=8.1,<9  # CLI framework testing
+pyyaml>=6.0,<7  # Configuration file testing
+subprocess-tee>=0.4,<1  # Process testing utilities

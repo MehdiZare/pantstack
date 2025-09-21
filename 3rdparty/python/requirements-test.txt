@@ -1,0 +1,38 @@
+# Testing dependencies
+pytest>=7.4,<8
+pytest-cov>=4.1,<5
+pytest-asyncio>=0.21,<1
+pytest-mock>=3.11,<4
+pytest-env>=1.0,<2
+pytest-timeout>=2.1,<3
+pytest-xdist>=3.3,<4  # Parallel test execution
+faker>=19.0,<20  # Generate test data
+factory-boy>=3.3,<4  # Test factories
+freezegun>=1.2,<2  # Time mocking
+responses>=0.23,<1  # Mock HTTP responses
+moto>=4.2,<5  # Mock AWS services
+httpx>=0.24,<1  # Async HTTP client for testing
+
+# Additional testing tools
+boto3>=1.28,<2  # AWS SDK for testing
+botocore>=1.31,<2  # AWS core library
+redis>=4.6,<5  # Redis client for testing
+requests>=2.31,<3  # HTTP client for integration tests
+docker>=6.1,<7  # Docker integration for tests
+subprocess-tee>=0.4,<1  # Subprocess utilities
+python-dateutil>=2.8,<3  # Date utilities
+ujson>=5.8,<6  # Fast JSON for tests
+pyyaml>=6.0,<7  # YAML parsing
+click>=8.1,<9  # CLI testing support
+
+# Test reporting
+pytest-html>=3.2,<4  # HTML test reports
+pytest-json-report>=1.5,<2  # JSON test reports
+coverage>=7.3,<8  # Coverage analysis
+
+# Performance testing
+locust>=2.16,<3  # Load testing
+
+# Database testing
+psycopg2-binary>=2.9,<3  # PostgreSQL adapter
+asyncpg>=0.28,<1  # Async PostgreSQL
