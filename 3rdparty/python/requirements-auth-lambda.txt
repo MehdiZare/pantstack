@@ -1,0 +1,9 @@
+# Lambda-specific dependencies for auth service
+# These are minimal to reduce cold start times
+
+# JWT handling
+PyJWT>=2.8,<3
+
+# AWS SDK (usually provided by Lambda runtime but included for local testing)
+boto3>=1.28,<2
+botocore>=1.31,<2

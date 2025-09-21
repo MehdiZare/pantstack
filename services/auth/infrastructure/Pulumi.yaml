@@ -1,0 +1,28 @@
+name: auth
+runtime: python
+description: Infrastructure for Auth service
+
+config:
+  foundation_stack:
+    description: Reference to foundation stack
+    default: "${PULUMI_ORG}/pantstack-foundation/dev"
+
+  jwt_secret:
+    description: JWT signing secret
+    secret: true
+
+  jwt_refresh_secret:
+    description: JWT refresh token secret
+    secret: true
+
+  supabase_url:
+    description: Supabase project URL
+    default: https://your-project.supabase.co
+
+  supabase_anon_key:
+    description: Supabase anonymous key
+    secret: true
+
+  from_email:
+    description: From email for SES
+    default: noreply@example.com
