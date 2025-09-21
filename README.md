@@ -19,7 +19,7 @@ make check-tools  # Verify all tools are installed
 ```
 
 ### Required Tools
-- **Python 3.11+** (repo uses 3.11+ for compatibility)
+- **Python 3.12** (repo uses Python 3.12.*)
 - **uv** - Fast Python package installer
 - **Docker & Docker Compose** - Container runtime
 - **AWS CLI** - AWS service management
@@ -166,16 +166,33 @@ Note: Pants is installed via the official bootstrap script. Local targets use `.
   - `stack/agents` (agent runner stub)
   - Foundation infra: `stack/infra/foundation` (shared VPC, ECR, GH setup)
 
-## Local Development (LocalStack)
+## Local Development (LocalStack & Supabase)
 
 Spin up AWS mocks and run services locally:
 
-- `make dev-up` — start LocalStack (S3, SQS, DynamoDB) on `http://localhost:4566` and Redis on 6379
-- `make dev-api-s S=web` — run the web API locally
-- `make dev-worker-s S=agent` — run the agent worker locally
-- `make dev-down` — stop LocalStack
+1. **Start Supabase** (provides PostgreSQL, Auth, Storage):
+   ```bash
+   supabase start  # First time: pulls Docker images
+   ```
+
+2. **Start LocalStack & Redis**:
+   ```bash
+   make dev-up  # Starts LocalStack (S3, SQS, DynamoDB) and Redis
+   ```
+
+3. **Run services**:
+   - `make dev-api-s S=web` — run the web API locally
+   - `make dev-worker-s S=agent` — run the agent worker locally
+
+4. **Stop services**:
+   ```bash
+   make dev-down    # Stops LocalStack and Redis
+   supabase stop    # Stops Supabase services
+   ```
 
 Notes:
+- LocalStack runs on `http://localhost:4566`
+- Supabase Studio available at `http://localhost:54323`
 - When `LOCALSTACK=true`, adapters auto‑configure to LocalStack and create queues/buckets/tables if missing.
 
 ## Template vs. Generated Projects

@@ -34,7 +34,10 @@
       "Bash(supabase init:*)",
       "Bash(supabase start:*)",
       "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
-      "Bash(pants test:*)"
+      "Bash(pants test:*)",
+      "Bash(make:*)",
+      "Bash(pants generate-lockfiles:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

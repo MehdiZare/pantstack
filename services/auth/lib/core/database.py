@@ -4,7 +4,7 @@ from typing import Optional
 
 from supabase import Client, create_client
 
-from shared.core.config import DatabaseConfig
+from stack.libs.shared.core.config import DatabaseConfig
 
 
 def get_supabase_client(config: DatabaseConfig) -> Optional[Client]:

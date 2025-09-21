@@ -36,3 +36,8 @@ locust>=2.16,<3  # Load testing
 # Database testing
 psycopg2-binary>=2.9,<3  # PostgreSQL adapter
 asyncpg>=0.28,<1  # Async PostgreSQL
+
+# Template testing
+pytest-cookies>=0.7.0  # For cookiecutter template testing
+cookiecutter>=2.3.0  # Template engine
+cruft>=2.15.0  # Template management with updates

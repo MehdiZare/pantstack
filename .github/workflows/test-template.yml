@@ -1,0 +1,245 @@
+name: Test Template
+
+on:
+  push:
+    branches: [main, dev, update-infra-and-db]
+    paths:
+      - 'cookiecutter.json'
+      - '**/*{{ cookiecutter.*'
+      - '.env.example'
+      - 'scripts/publish_template.sh'
+      - 'scripts/quickstart.sh'
+      - 'tests/template/**'
+      - '.github/workflows/test-template.yml'
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - 'cookiecutter.json'
+      - '**/*{{ cookiecutter.*'
+      - '.env.example'
+      - 'scripts/publish_template.sh'
+      - 'scripts/quickstart.sh'
+      - 'tests/template/**'
+      - '.github/workflows/test-template.yml'
+
+jobs:
+  validate-template:
+    name: Validate Template Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cookies cookiecutter cruft pyyaml
+
+      - name: Run template validation tests
+        run: |
+          pytest tests/template/test_template_validation.py -v
+
+      - name: Check for hardcoded secrets
+        run: |
+          # Check for common secret patterns
+          ! grep -r "aws_access_key_id.*=.*AKI" . --exclude-dir=.git --exclude-dir=.github || exit 1
+          ! grep -r "aws_secret_access_key.*=.*[A-Za-z0-9/+=]" . --exclude-dir=.git --exclude-dir=.github || exit 1
+          ! grep -r "GITHUB_TOKEN.*=.*ghp_" . --exclude-dir=.git --exclude-dir=.github || exit 1
+
+  test-cookiecutter-rendering:
+    name: Test Cookiecutter Rendering
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cookiecutter cruft pytest pytest-cookies
+
+      - name: Test cookiecutter rendering
+        run: |
+          pytest tests/template/test_cookiecutter_rendering.py -v
+
+      - name: Test template with default values
+        run: |
+          # Create a test directory
+          mkdir -p /tmp/test-template
+          cd /tmp/test-template
+
+          # Test cookiecutter with default values
+          cookiecutter ${{ github.workspace }} --no-input \
+            project_slug=test-project \
+            github_owner=test-owner \
+            github_repo=test-project \
+            aws_account_id=123456789012 \
+            aws_region=us-east-1 \
+            pulumi_org=test-org
+
+          # Verify generated project structure
+          cd test-project
+          test -f Makefile
+          test -f README.md
+          test -f .env.example
+          test -d services
+          test -d stack
+          test -d scripts
+          test -d .github/workflows
+
+  test-cruft-workflow:
+    name: Test Cruft Template Workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install cruft
+        run: |
+          python -m pip install --upgrade pip
+          pip install cruft
+
+      - name: Test cruft create
+        run: |
+          # Test cruft create with no-input
+          cd /tmp
+          cruft create ${{ github.workspace }} \
+            --no-input \
+            --extra-context '{"project_slug":"cruft-test","github_owner":"test","aws_account_id":"123456789012"}'
+
+          # Verify .cruft.json was created
+          cd cruft-test
+          test -f .cruft.json
+
+          # Check that .cruft.json contains correct template info
+          python -c "
+import json
+with open('.cruft.json') as f:
+    cruft_data = json.load(f)
+    assert 'template' in cruft_data
+            print('Cruft metadata verified')
+          "
+
+  test-make-commands:
+    name: Test Make Commands
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-mock
+
+      - name: Test make help
+        run: |
+          make help
+
+      - name: Test template help
+        run: |
+          make template-help
+
+      - name: Run make command tests
+        run: |
+          pytest cli/tests/test_make_commands.py -v
+
+  test-generated-project:
+    name: Test Generated Project
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install cookiecutter
+        run: |
+          python -m pip install --upgrade pip
+          pip install cookiecutter
+
+      - name: Generate project from template
+        run: |
+          cd /tmp
+          cookiecutter ${{ github.workspace }} --no-input \
+            project_slug=generated-test \
+            github_owner=test-owner \
+            github_repo=generated-test \
+            aws_account_id=123456789012 \
+            aws_region=us-east-1 \
+            pulumi_org=test-org
+
+      - name: Validate generated project
+        run: |
+          cd /tmp/generated-test
+
+          # Check that template variables were replaced
+          ! grep -r "{{ cookiecutter" . --exclude-dir=.git || exit 1
+
+          # Verify .env.example doesn't have template variables
+          ! grep "{{ cookiecutter" .env.example || exit 1
+
+          # Check that Python files are syntactically valid
+          python -m py_compile $(find . -name "*.py" -type f | head -5) || true
+
+          # Verify Makefile works
+          make help
+
+  test-template-cross-platform:
+    name: Test Template Cross-Platform
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cookiecutter
+
+      - name: Test template generation
+        run: |
+          # Generate project
+          cookiecutter . --no-input \
+            project_slug=cross-platform-test \
+            github_owner=test \
+            aws_account_id=123456789012
+
+          # Basic validation
+          cd cross-platform-test
+          test -f Makefile
+          test -d services

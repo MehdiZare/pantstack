@@ -34,3 +34,15 @@ python_tests(
     timeout=600,
     resolve="test",
 )
+
+python_tests(
+    name="test_service_lifecycle",
+    sources=["test_service_lifecycle.py"],
+    tags=["integration", "lifecycle"],
+    timeout=300,
+    resolve="test",
+    run_goal_use_sandbox=False,
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+    ],
+)

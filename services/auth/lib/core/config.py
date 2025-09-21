@@ -3,7 +3,7 @@
 from typing import Optional
 
 from pydantic import Field
-from shared.core.config import (
+from stack.libs.shared.core.config import (
     AWSConfig,
     BaseConfig,
     CeleryConfig,

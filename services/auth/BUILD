@@ -1,6 +1,6 @@
 python_sources(
     name="auth_core",
-    sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py"],
+    sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py", "lib/**/*.py"],
     resolve="auth_core",
     dependencies=["stack/libs/shared", "3rdparty/python:auth_core_reqs"],
     overrides={
@@ -41,11 +41,24 @@ docker_image(
     source="Dockerfile.api",
 )
 
+python_source(
+    name="test_utils",
+    source="tests/conftest.py",
+    resolve="auth_api",
+    dependencies=[
+        ":auth_core",
+        ":auth_api_src",
+        "3rdparty/python:auth_api_reqs#fastapi",
+        "3rdparty/python:auth_api_reqs#dependency-injector",
+    ],
+)
+
 python_tests(
     name="unit",
     sources=["tests/unit/**/*.py"],
     resolve="auth_api",
     dependencies=[
+        ":test_utils",
         ":auth_core",
         ":auth_api_src",
         "3rdparty/python:auth_api_reqs#fastapi",

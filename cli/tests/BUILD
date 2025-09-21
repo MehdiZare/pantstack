@@ -37,3 +37,14 @@ python_tests(
         "//3rdparty/python:test_reqs#click",
     ],
 )
+
+python_tests(
+    name="test_make_commands",
+    sources=["test_make_commands.py"],
+    tags=["unit", "cli", "make"],
+    resolve="test",
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+        "//3rdparty/python:test_reqs#pytest-mock",
+    ],
+)

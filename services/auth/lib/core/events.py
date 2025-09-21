@@ -9,7 +9,7 @@ from uuid import uuid4
 import redis
 from celery import Celery
 
-from shared.core.config import BaseConfig
+from stack.libs.shared.core.config import BaseConfig
 
 
 class EventType(Enum):

@@ -5,7 +5,7 @@
 	boot fmt lint test up down dev-up dev-down package mod mod-s locks pre-commit-install bootstrap \
 	new-module stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
-	gh-new-module-pr
+	gh-new-module-pr test-service-lifecycle test-service-integration test-create-cleanup clean-test-services
 
 help: ## Show this help message
 	@echo "Pantstack Monorepo Commands:"
@@ -212,13 +212,13 @@ up:     ## Start full local stack with LocalStack
 down:   ## Stop local stack
 	docker compose down -v
 
-dev-up: ## Start minimal dev stack (Redis, Postgres, LocalStack)
-	docker compose up -d redis postgres localstack
+dev-up: ## Start minimal dev stack (Redis, LocalStack) - run 'supabase start' separately for DB
+	docker compose up -d redis localstack
 	@sleep 5
-	@echo "✅ Dev services ready"
+	@echo "✅ Dev services ready (remember to run 'supabase start' for database)"
 
 dev-down: ## Stop dev services
-	docker compose down redis postgres localstack
+	docker compose down redis localstack
 
 # Configuration Management
 config-init: ## Initialize configuration files from templates
@@ -339,6 +339,33 @@ gh-new-module-pr: ## Create module PR (e.g., make gh-new-module-pr M=orders)
 	git commit -m "feat($(M)): scaffold module"; \
 	git push -u origin $$b; \
 	gh pr create --base dev --head $$b --title "feat($(M)): scaffold module" --body "Scaffold $(M) module via template script."
+
+# Service Lifecycle Testing
+test-service-lifecycle: ## Run service lifecycle tests with cleanup
+	@echo "🧪 Testing service lifecycle..."
+	@./scripts/test/test_service_lifecycle.sh
+
+test-service-integration: ## Run Python integration tests for services
+	@echo "🐍 Running service integration tests..."
+	@./pants test tests/integration/test_service_lifecycle.py --test-output=all || \
+		python -m pytest tests/integration/test_service_lifecycle.py -v
+
+test-create-cleanup: ## Test service creation and immediate cleanup
+	@echo "🔄 Testing create/cleanup cycle..."
+	@TEST_SVC="test_$$$$_$$(date +%s)"; \
+	S=$$TEST_SVC ./scripts/new_service.sh && \
+	echo "✅ Created service: $$TEST_SVC" && \
+	ls -la services/$$TEST_SVC/BUILD && \
+	echo "🧹 Cleaning up..." && \
+	rm -rf services/$$TEST_SVC && \
+	echo "✨ Cleanup complete"
+
+clean-test-services: ## Clean any leftover test services
+	@echo "🧹 Cleaning test services..."
+	@find services -type d -name "test_*" -exec rm -rf {} + 2>/dev/null || true
+	@find services -type d -name "temp_*" -exec rm -rf {} + 2>/dev/null || true
+	@if [ -f ./pants ]; then ./pants --no-watch-filesystem gc 2>/dev/null || true; fi
+	@echo "✨ Test services cleaned"
 
 verify-dev: ## Verify test environment (e.g., make verify-dev MS="api orders")
 	@chmod +x scripts/verify_http.sh; \

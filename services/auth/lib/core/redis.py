@@ -5,7 +5,7 @@ from typing import Optional
 import redis
 from redis.asyncio import Redis as AsyncRedis
 
-from shared.core.config import RedisConfig
+from stack.libs.shared.core.config import RedisConfig
 
 
 def get_redis_client(config: RedisConfig) -> redis.Redis:

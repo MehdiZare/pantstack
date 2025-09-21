@@ -2,7 +2,7 @@
 
 from dependency_injector import containers, providers
 
-from shared.core.config_strategy import ConfigLoader
+from stack.libs.shared.core.config_strategy import ConfigLoader
 from services.auth.lib.core.config import AuthConfig
 from services.auth.lib.core.database import get_supabase_client
 from services.auth.lib.core.events import EventBackbone

@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from shared.core.config import BaseConfig
+from stack.libs.shared.core.config import BaseConfig
 
 from services.auth.lib.core.events import EventBackbone, EventType
 from services.auth.lib.modules.users.repositories import UserRepository

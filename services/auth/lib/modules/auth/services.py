@@ -4,8 +4,8 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from shared.core.config import BaseConfig
-from shared.core.security import (
+from stack.libs.shared.core.config import BaseConfig
+from stack.libs.shared.core.security import (
     create_access_token,
     get_password_hash,
     verify_password,
