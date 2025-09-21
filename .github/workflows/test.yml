@@ -1,0 +1,280 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+env:
+  PANTS_CONFIG_FILES: pants.toml
+  # Pants cache settings
+  PANTS_CACHE_WARNINGS_LIMIT: 0
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache Pants
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pants/setup
+            ~/.cache/pants/lmdb_store
+            ~/.cache/pants/named_caches
+          key: pants-cache-${{ runner.os }}-${{ hashFiles('pants.toml', '3rdparty/python/requirements*.txt') }}
+          restore-keys: |
+            pants-cache-${{ runner.os }}-
+
+      - name: Bootstrap Pants
+        run: |
+          ./pants --version
+
+      - name: Check formatting
+        run: ./pants fmt --check ::
+
+      - name: Lint
+        run: ./pants lint ::
+
+      - name: Typecheck
+        run: ./pants check ::
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache Pants
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pants/setup
+            ~/.cache/pants/lmdb_store
+            ~/.cache/pants/named_caches
+          key: pants-cache-${{ runner.os }}-${{ hashFiles('pants.toml', '3rdparty/python/requirements*.txt') }}
+          restore-keys: |
+            pants-cache-${{ runner.os }}-
+
+      - name: Bootstrap Pants
+        run: |
+          ./pants --version
+
+      - name: Run unit tests
+        run: ./pants test :: --tag=unit --test-use-coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      # LocalStack for AWS services
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - "4566:4566"
+        env:
+          SERVICES: s3,sqs,dynamodb,lambda
+          DEBUG: 1
+          DATA_DIR: /tmp/localstack/data
+          LAMBDA_EXECUTOR: docker
+          DOCKER_HOST: unix:///var/run/docker.sock
+        volumes:
+          - "/var/run/docker.sock:/var/run/docker.sock"
+
+      # Redis for caching and queues
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.deb -o /tmp/supabase.deb
+          sudo dpkg -i /tmp/supabase.deb
+
+      - name: Cache Pants
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pants/setup
+            ~/.cache/pants/lmdb_store
+            ~/.cache/pants/named_caches
+          key: pants-cache-${{ runner.os }}-${{ hashFiles('pants.toml', '3rdparty/python/requirements*.txt') }}
+          restore-keys: |
+            pants-cache-${{ runner.os }}-
+
+      - name: Bootstrap Pants
+        run: |
+          ./pants --version
+
+      - name: Start Supabase
+        run: |
+          supabase init --with-vscode-settings=false
+          supabase start --ignore-health-check
+
+      - name: Wait for services
+        run: |
+          # Wait for LocalStack
+          timeout 60 bash -c 'until curl -s http://localhost:4566/_localstack/health; do sleep 2; done'
+
+          # Wait for Redis
+          timeout 60 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 2; done'
+
+          # Wait for Supabase
+          timeout 60 bash -c 'until curl -s http://localhost:54321/rest/v1/; do sleep 2; done'
+
+      - name: Run integration tests
+        env:
+          ENV: test
+          LOCALSTACK: "true"
+          LOCALSTACK_ENDPOINT: http://localhost:4566
+          SUPABASE_URL: http://localhost:54321
+          REDIS_URL: redis://localhost:6379/1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+        run: ./pants test :: --tag=integration
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
+
+  setup-tests:
+    name: Setup and CLI Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache Pants
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pants/setup
+            ~/.cache/pants/lmdb_store
+            ~/.cache/pants/named_caches
+          key: pants-cache-${{ runner.os }}-${{ hashFiles('pants.toml', '3rdparty/python/requirements*.txt') }}
+          restore-keys: |
+            pants-cache-${{ runner.os }}-
+
+      - name: Bootstrap Pants
+        run: |
+          ./pants --version
+
+      - name: Run setup tests
+        run: ./pants test scripts/tests:: --tag=setup
+
+      - name: Run CLI tests
+        run: ./pants test cli/tests:: --tag=cli
+
+  shared-tests:
+    name: Shared Library Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Cache Pants
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/pants/setup
+            ~/.cache/pants/lmdb_store
+            ~/.cache/pants/named_caches
+          key: pants-cache-${{ runner.os }}-${{ hashFiles('pants.toml', '3rdparty/python/requirements*.txt') }}
+          restore-keys: |
+            pants-cache-${{ runner.os }}-
+
+      - name: Bootstrap Pants
+        run: |
+          ./pants --version
+
+      - name: Run shared library tests
+        run: ./pants test shared/tests::
+
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, unit-tests, integration-tests, setup-tests, shared-tests]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.lint-and-typecheck.result }}" == "failure" ]]; then
+            echo "❌ Lint and typecheck failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ]]; then
+            echo "❌ Unit tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.setup-tests.result }}" == "failure" ]]; then
+            echo "❌ Setup tests failed"
+            exit 1
+          fi
+
+          if [[ "${{ needs.shared-tests.result }}" == "failure" ]]; then
+            echo "❌ Shared library tests failed"
+            exit 1
+          fi
+
+          echo "✅ All tests passed!"

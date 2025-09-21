@@ -170,10 +170,102 @@ _ = repo_var(
     ),
 )
 
+# 6) Redis cluster for Celery broker
+redis_subnet_group = aws.elasticache.SubnetGroup(
+    "redis-subnet-group",
+    name=f"{PROJECT_SLUG}-redis",
+    subnet_ids=public_subnet_ids,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+redis_security_group = aws.ec2.SecurityGroup(
+    "redis-sg",
+    name=f"{PROJECT_SLUG}-redis",
+    vpc_id=vpc.id,
+    description="Security group for Redis cluster",
+    ingress=[
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=6379,
+            to_port=6379,
+            protocol="tcp",
+            cidr_blocks=["10.80.0.0/16"],  # Allow from within VPC
+        )
+    ],
+    egress=[
+        aws.ec2.SecurityGroupEgressArgs(
+            from_port=0,
+            to_port=0,
+            protocol="-1",
+            cidr_blocks=["0.0.0.0/0"],
+        )
+    ],
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+redis_cluster = aws.elasticache.ReplicationGroup(
+    "redis-cluster",
+    replication_group_id=f"{PROJECT_SLUG}-redis",
+    replication_group_description="Redis cluster for Celery broker",
+    node_type="cache.t3.micro",
+    number_cache_clusters=2,  # Primary + replica
+    port=6379,
+    subnet_group_name=redis_subnet_group.name,
+    security_group_ids=[redis_security_group.id],
+    automatic_failover_enabled=True,
+    multi_az_enabled=True,
+    engine_version="7.1",
+    parameter_group_name="default.redis7",
+    at_rest_encryption_enabled=True,
+    transit_encryption_enabled=False,  # Set to True in production
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+# 7) EventBridge event bus for event backbone
+event_bus = aws.cloudwatch.EventBus(
+    "event-bus",
+    name=f"{PROJECT_SLUG}-events",
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+# Archive for event replay
+event_archive = aws.cloudwatch.EventArchive(
+    "event-archive",
+    name=f"{PROJECT_SLUG}-archive",
+    event_source_arn=event_bus.arn,
+    retention_days=30,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+# 8) SQS queues for async processing
+dlq = aws.sqs.Queue(
+    "dlq",
+    name=f"{PROJECT_SLUG}-dlq",
+    message_retention_seconds=14 * 24 * 60 * 60,  # 14 days
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+main_queue = aws.sqs.Queue(
+    "main-queue",
+    name=f"{PROJECT_SLUG}-main",
+    visibility_timeout_seconds=300,
+    message_retention_seconds=4 * 24 * 60 * 60,  # 4 days
+    redrive_policy=pulumi.Output.all(dlq.arn).apply(
+        lambda args: f'{{"deadLetterTargetArn":"{args[0]}","maxReceiveCount":3}}'
+    ),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
 # Export network details for modules to consume via StackReference
 pulumi.export("vpc_id", vpc.id)
 pulumi.export("public_subnet_ids", pulumi.Output.all(*public_subnet_ids))
 pulumi.export("vpc_cidr", vpc.cidr_block)
+pulumi.export("redis_endpoint", redis_cluster.primary_endpoint_address)
+pulumi.export("redis_port", 6379)
+pulumi.export("event_bus_name", event_bus.name)
+pulumi.export("event_bus_arn", event_bus.arn)
+pulumi.export("main_queue_url", main_queue.url)
+pulumi.export("main_queue_arn", main_queue.arn)
+pulumi.export("dlq_url", dlq.url)
 
 
 # Useful outputs

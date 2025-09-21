@@ -8,8 +8,29 @@ Pantstack is a batteries-included monorepo template for layered services with Pa
 - CI/CD for lint, typecheck, tests, package, deploy, and PR preview stacks
 - Pulumi Cloud (Free) backend; optional ESC (Environments) integration
 
-Prerequisites:
-- Python 3.12 (repo is pinned to 3.12.* in `pants.toml`)
+## Prerequisites
+
+### Automated Setup (Recommended)
+Run the setup script to install all required tools:
+```bash
+make setup        # Interactive setup with prompts
+make setup-quick  # Quick setup without prompts
+make check-tools  # Verify all tools are installed
+```
+
+### Required Tools
+- **Python 3.11+** (repo uses 3.11+ for compatibility)
+- **uv** - Fast Python package installer
+- **Docker & Docker Compose** - Container runtime
+- **AWS CLI** - AWS service management
+- **Pulumi** - Infrastructure as Code
+- **Pants 2.28+** - Build system
+- **Supabase CLI** - Database and auth management
+- **GitHub CLI** - Repository management
+- **jq** - JSON processing
+- **cruft** - Template management
+
+See [docs/tools-requirements.md](docs/tools-requirements.md) for detailed installation instructions.
 
 ## Quick Start (Template Author)
 
