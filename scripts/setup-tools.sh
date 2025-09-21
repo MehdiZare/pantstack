@@ -9,6 +9,51 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
 
+# Parse command line arguments
+CLEANUP_TEMPLATE=false
+SKIP_INSTALL=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --cleanup-template)
+      CLEANUP_TEMPLATE=true
+      shift
+      ;;
+    --skip-install)
+      SKIP_INSTALL=true
+      shift
+      ;;
+    --help)
+      echo "Usage: $0 [options]"
+      echo ""
+      echo "Options:"
+      echo "  --cleanup-template  Remove template-specific files before setup"
+      echo "  --skip-install     Skip tool installation (only check)"
+      echo "  --help            Show this help message"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
+  esac
+done
+
+# Run template cleanup if requested
+if [ "$CLEANUP_TEMPLATE" = true ]; then
+  if [ -f "scripts/cleanup_template.sh" ]; then
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${CYAN}          Template Cleanup Before Setup${RESET}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    bash scripts/cleanup_template.sh
+    echo ""
+  else
+    echo -e "${YELLOW}⚠️  Cleanup script not found, skipping template cleanup${RESET}"
+  fi
+fi
+
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo -e "${CYAN}       Pantstack Development Environment Setup${RESET}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -191,24 +236,29 @@ done
 if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
     echo ""
     echo -e "${YELLOW}📦 Missing tools: ${MISSING_TOOLS[*]}${RESET}"
-    echo ""
-    read -p "Would you like to install missing tools? (y/N): " -n 1 -r
-    echo ""
 
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        if [[ "$OS_TYPE" == "macos" ]]; then
-            install_homebrew
-        fi
+    if [ "$SKIP_INSTALL" = true ]; then
+        echo -e "${YELLOW}Skipping installation (--skip-install flag set)${RESET}"
+    else
+        echo ""
+        read -p "Would you like to install missing tools? (y/N): " -n 1 -r
+        echo ""
 
-        for tool in "${MISSING_TOOLS[@]}"; do
-            echo ""
-            echo -e "${BLUE}Installing $tool...${RESET}"
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
             if [[ "$OS_TYPE" == "macos" ]]; then
-                install_tool_macos "$tool"
-            else
-                install_tool_linux "$tool"
+                install_homebrew
             fi
-        done
+
+            for tool in "${MISSING_TOOLS[@]}"; do
+                echo ""
+                echo -e "${BLUE}Installing $tool...${RESET}"
+                if [[ "$OS_TYPE" == "macos" ]]; then
+                    install_tool_macos "$tool"
+                else
+                    install_tool_linux "$tool"
+                fi
+            done
+        fi
     fi
 else
     echo ""

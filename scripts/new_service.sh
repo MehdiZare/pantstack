@@ -13,37 +13,120 @@ if [ -d "$base" ]; then
 fi
 
 echo "Scaffolding service at $base"
-mkdir -p "$base"/app/api "$base"/app/worker "$base"/domain/models "$base"/domain/services "$base"/domain/ports "$base"/adapters/repositories "$base"/public "$base"/infra/pulumi "$base"/tests/unit
+
+# Create directory structure
+mkdir -p "$base"/app/api "$base"/app/worker
+mkdir -p "$base"/domain/models "$base"/domain/services "$base"/domain/ports
+mkdir -p "$base"/adapters/repositories
+mkdir -p "$base"/public
+mkdir -p "$base"/infrastructure
+mkdir -p "$base"/tests/unit "$base"/tests/integration
+
+# Create __init__.py files
+touch "$base"/__init__.py
+touch "$base"/app/__init__.py
+touch "$base"/app/api/__init__.py
+touch "$base"/app/worker/__init__.py
+touch "$base"/domain/__init__.py
+touch "$base"/domain/models/__init__.py
+touch "$base"/domain/services/__init__.py
+touch "$base"/domain/ports/__init__.py
+touch "$base"/adapters/__init__.py
+touch "$base"/adapters/repositories/__init__.py
+touch "$base"/public/__init__.py
+touch "$base"/tests/__init__.py
+touch "$base"/tests/unit/__init__.py
+touch "$base"/tests/integration/__init__.py
 
 cat > "$base"/BUILD << 'EOF'
 python_sources(
-    name="core",
+    name="${name}_core",
     sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py"],
-    resolve="platform_core",
-    dependencies=["stack/libs/shared", "3rdparty/python:platform_core_reqs"],
+    resolve="${name}_core",
+    dependencies=[
+        "stack/libs/shared",
+        "stack/events/libs",
+        "3rdparty/python:${name}_core_reqs",
+    ],
+    overrides={
+        "domain/**/*.py": {
+            "dependencies": [
+                "3rdparty/python:${name}_core_reqs#pydantic",
+            ]
+        },
+    },
 )
 
 python_sources(
-    name="api_src",
+    name="${name}_api_src",
     sources=["app/api/**/*.py"],
-    resolve="platform_core",
-    dependencies=[":core"],
+    resolve="${name}_api",
+    dependencies=[":${name}_core", "3rdparty/python:${name}_api_reqs"],
+    overrides={
+        "app/api/**/*.py": {
+            "dependencies": [
+                "3rdparty/python:${name}_api_reqs#fastapi",
+                "3rdparty/python:${name}_api_reqs#uvicorn",
+                "3rdparty/python:${name}_api_reqs#pydantic",
+            ]
+        },
+    },
 )
 
 python_sources(
-    name="worker_src",
+    name="${name}_worker_src",
     sources=["app/worker/**/*.py"],
-    resolve="platform_core",
-    dependencies=[":core"],
+    resolve="${name}_core",
+    dependencies=[":${name}_core"],
 )
 
-pex_binary(name="api_pex", entry_point="services.${name}.app.api.main:run", dependencies=[":api_src"])  # type: ignore[name-defined]
-pex_binary(name="worker_pex", entry_point="services.${name}.app.worker.run:main", dependencies=[":worker_src"])  # type: ignore[name-defined]
+pex_binary(
+    name="${name}_api_pex",
+    entry_point="services.${name}.app.api.main:run",
+    resolve="${name}_api",
+    dependencies=[":${name}_api_src"],
+)
 
-docker_image(name="image", dependencies=[":api_pex"], image_tags=["latest"])
-docker_image(name="worker_image", dependencies=[":worker_pex"], image_tags=["latest"])
+pex_binary(
+    name="${name}_worker_pex",
+    entry_point="services.${name}.app.worker.run:main",
+    resolve="${name}_core",
+    dependencies=[":${name}_worker_src"],
+)
 
-python_tests(name="unit", sources=["tests/unit/**/*.py"], resolve="tests", dependencies=[":core", ":api_src", ":worker_src"])
+docker_image(
+    name="${name}_image",
+    dependencies=[":${name}_api_pex"],
+    image_tags=["latest"],
+    source="Dockerfile.api",
+)
+
+docker_image(
+    name="${name}_worker_image",
+    dependencies=[":${name}_worker_pex"],
+    image_tags=["latest"],
+    source="Dockerfile.worker",
+)
+
+python_tests(
+    name="unit",
+    sources=["tests/unit/**/*.py"],
+    resolve="${name}_api",
+    dependencies=[
+        ":${name}_core",
+        ":${name}_api_src",
+        ":${name}_worker_src",
+        "3rdparty/python:${name}_api_reqs#fastapi",
+        "3rdparty/python:${name}_api_reqs#httpx",
+    ],
+)
+
+python_tests(
+    name="integration",
+    sources=["tests/integration/**/*.py"],
+    resolve="${name}_api",
+    dependencies=[":${name}_core"],
+)
 EOF
 
 sed -i '' "s/\${name}/$SVC/g" "$base"/BUILD 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/BUILD
@@ -52,7 +135,7 @@ cat > "$base"/app/api/main.py << 'EOF'
 from fastapi import FastAPI
 
 
-app = FastAPI(title="svc", version="0.1.0")
+app = FastAPI(title="${name}", version="0.1.0")
 
 
 @app.get("/healthz")
@@ -60,31 +143,75 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {"service": "${name}", "status": "running"}
+
+
 def run() -> None:
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-EOF
 
-sed -i '' "s/title=\"svc\"/title=\"$SVC\"/" "$base"/app/api/main.py 2>/dev/null || true
+
+if __name__ == "__main__":
+    run()
+EOF
 
 cat > "$base"/app/worker/run.py << 'EOF'
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 def main() -> None:
-    print("worker started")
+    """Main entry point for the worker."""
+    logger.info("Worker started for service: ${name}")
+    # TODO: Add worker logic here
+
+
+if __name__ == "__main__":
+    main()
 EOF
 
-cat > "$base"/infra/pulumi/Pulumi.yaml << 'EOF'
-name: svc
+# Create Dockerfiles
+cat > "$base"/Dockerfile.api << 'EOF'
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY . .
+
+ENTRYPOINT ["python", "-m", "services.${name}.app.api.main"]
+EOF
+
+cat > "$base"/Dockerfile.worker << 'EOF'
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY . .
+
+ENTRYPOINT ["python", "-m", "services.${name}.app.worker.run"]
+EOF
+
+# Create Pulumi infrastructure
+cat > "$base"/infrastructure/Pulumi.yaml << 'EOF'
+name: ${name}
 runtime:
   name: python
+  options:
+    virtualenv: venv
+backend:
+  url: s3://pulumi-state-${name}
 EOF
-sed -i '' "s/name: svc/name: $SVC/" "$base"/infra/pulumi/Pulumi.yaml 2>/dev/null || true
 
-cat > "$base"/infra/pulumi/requirements.txt << 'EOF'
+cat > "$base"/infrastructure/requirements.txt << 'EOF'
 pulumi>=3.0.0
 pulumi-aws>=6.0.0
 EOF
 
-cat > "$base"/infra/pulumi/__main__.py << 'EOF'
+cat > "$base"/infrastructure/__main__.py << 'EOF'
 import os
 from stack.infra.components.http_service import EcsHttpService
 import pulumi
@@ -105,4 +232,40 @@ pulumi.export("alb_dns", svc.alb_dns)
 pulumi.export("url", svc.url)
 EOF
 
-echo "Service '$SVC' scaffolded. Update BUILD resolves as needed."
+# Replace ${name} placeholders with actual service name
+sed -i '' "s/\${name}/$SVC/g" "$base"/BUILD 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/BUILD
+sed -i '' "s/\${name}/$SVC/g" "$base"/app/api/main.py 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/app/api/main.py
+sed -i '' "s/\${name}/$SVC/g" "$base"/app/worker/run.py 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/app/worker/run.py
+sed -i '' "s/\${name}/$SVC/g" "$base"/Dockerfile.api 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/Dockerfile.api
+sed -i '' "s/\${name}/$SVC/g" "$base"/Dockerfile.worker 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/Dockerfile.worker
+sed -i '' "s/\${name}/$SVC/g" "$base"/infrastructure/Pulumi.yaml 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/infrastructure/Pulumi.yaml
+sed -i '' "s/\${name}/$SVC/g" "$base"/infrastructure/__main__.py 2>/dev/null || sed -i "s/\${name}/$SVC/g" "$base"/infrastructure/__main__.py
+
+# Create requirements files
+cat > "3rdparty/python/requirements-$SVC-core.txt" << 'EOF'
+pydantic>=2.0.0
+EOF
+
+cat > "3rdparty/python/requirements-$SVC-api.txt" << 'EOF'
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+httpx>=0.24.0
+python-multipart>=0.0.6
+EOF
+
+# Update pants.toml with new resolvers
+if [ -f "scripts/update_pants_resolvers.sh" ]; then
+  ./scripts/update_pants_resolvers.sh "$SVC"
+else
+  echo "\nNOTE: Remember to add the following to pants.toml under [python.resolves]:"
+  echo "  ${SVC}_core = \"lockfiles/${SVC}_core.lock\""
+  echo "  ${SVC}_api = \"lockfiles/${SVC}_api.lock\""
+  echo ""
+fi
+
+echo ""
+echo "Service '$SVC' scaffolded successfully."
+echo "Next steps:"
+echo "  1. Run: ./pants generate-lockfiles"
+echo "  2. Run: ./pants test services/$SVC::"

@@ -5,7 +5,8 @@
 	boot fmt lint test up down dev-up dev-down package mod mod-s locks pre-commit-install bootstrap \
 	stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
-	gh-new-service-pr test-service-lifecycle test-service-integration test-create-cleanup clean-test-services
+	gh-new-service-pr test-service-lifecycle test-service-integration test-create-cleanup clean-test-services \
+	cleanup-template init-project
 
 help: ## Show this help message
 	@echo "Pantstack Monorepo Commands:"
@@ -48,6 +49,26 @@ setup-quick: ## Quick setup without prompts (macOS/Linux)
 
 check-tools: ## Verify all required tools are installed
 	@./scripts/setup/verify-tools.sh
+
+cleanup-template: ## Remove template-specific files (for end users)
+	@echo "🧹 Cleaning up template-specific files..."
+	@if [ -f scripts/cleanup_template.sh ]; then \
+		bash scripts/cleanup_template.sh; \
+	else \
+		echo "Cleanup script not found (may have already been removed)"; \
+	fi
+
+init-project: ## Initialize project after template creation (cleanup + setup)
+	@echo "🚀 Initializing your new monorepo project..."
+	@if [ -f scripts/cleanup_template.sh ]; then \
+		bash scripts/cleanup_template.sh; \
+	fi
+	@echo ""
+	@echo "📦 Setting up development environment..."
+	@./scripts/setup-tools.sh
+	@echo ""
+	@echo "✅ Project initialization complete!"
+	@echo "Next: Configure .env file and run 'make bootstrap'"
 
 quickstart: ## Interactive setup wizard (template or project)
 	@./scripts/quickstart.sh
