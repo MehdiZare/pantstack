@@ -64,3 +64,15 @@ python_tests(
         "//3rdparty/python:test_reqs#pytest",
     ],
 )
+
+python_tests(
+    name="test_cli_commands",
+    sources=["test_cli_commands.py"],
+    tags=["integration", "cli"],
+    timeout=300,
+    resolve="test",
+    run_goal_use_sandbox=False,
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+    ],
+)

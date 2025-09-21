@@ -1,6 +1,4 @@
 """Integration tests for service lifecycle management."""
-import pytest
-pytest.skip("Skipping service lifecycle tests - requires filesystem access", allow_module_level=True)
 
 import os
 import shutil
@@ -15,6 +13,14 @@ import pytest
 
 class TestServiceLifecycle:
     """Test complete service lifecycle with cleanup."""
+
+    @pytest.fixture(scope="class", autouse=True)
+    def check_environment(self):
+        """Check if running in sandbox and skip if so."""
+        # Check if we're in a pants sandbox by looking for temp path patterns
+        current_path = Path(__file__).resolve()
+        if "/pants-sandbox-" in str(current_path) or "/tmp/" in str(current_path):
+            pytest.skip("Service lifecycle tests require filesystem access - skipping in sandbox", allow_module_level=True)
 
     @pytest.fixture(scope="class")
     def project_root(self):
@@ -36,14 +42,18 @@ class TestServiceLifecycle:
         service_path = project_root / "services" / service_name
 
         try:
+            # Skip if script doesn't exist (sandbox environment)
+            script_path = project_root / "scripts" / "new_service.sh"
+            if not script_path.exists():
+                pytest.skip("Service creation script not available in sandbox")
+
             # Create service
             result = subprocess.run(
-                ["./scripts/new_service.sh"],
+                [str(script_path)],
                 env={**os.environ, "S": service_name},
                 cwd=str(project_root),
                 capture_output=True,
                 text=True,
-                shell=True,
             )
 
             # Check if service was created (script might exit 0 even if service exists)
