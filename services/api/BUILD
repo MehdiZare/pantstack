@@ -1,11 +1,11 @@
 python_sources(
     name="api_core",
     sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py"],
-    resolve="api_core",
+    resolve="api_main",  # Use api_main resolve for all API service components
     dependencies=[
-        "shared",
-        "stack/libs/shared",
-        "3rdparty/python:api_core_reqs",
+        "//shared/core:core@resolve=api_main",
+        "//shared/utils:utils@resolve=api_main",
+        "//3rdparty/python:api_main_reqs",
     ],
 )
 
@@ -15,8 +15,8 @@ python_sources(
     resolve="api_main",
     dependencies=[
         ":api_core",
-        "shared",
-        "3rdparty/python:api_main_reqs",
+        "//shared/core:core@resolve=api_main",
+        "//3rdparty/python:api_main_reqs",
     ],
 )
 
