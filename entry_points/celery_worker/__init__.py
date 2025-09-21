@@ -1,0 +1,1 @@
+"""Centralized Celery worker that discovers tasks from all services."""
