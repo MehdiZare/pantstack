@@ -13,7 +13,11 @@ backend_packages = [
 ]
 
 [python]
-interpreter_constraints = ["==3.12.*"]
+interpreter_constraints = [">=3.11,<3.12"]
+enable_resolves = true
+
+[python-bootstrap]
+search_path = ["<PATH>", "/opt/homebrew/opt/pyenv/versions/3.11.9/bin", "/usr/local/bin", "/opt/homebrew/bin"]
 
 [python.resolves]
 # Service resolves
