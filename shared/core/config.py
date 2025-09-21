@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
 import yaml
-from pydantic import BaseSettings, Field, validator
-from pydantic_settings import SettingsConfigDict
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 T = TypeVar("T", bound=BaseSettings)
 
@@ -85,13 +85,15 @@ class BaseConfig(BaseSettings):
     )
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=None,  # Don't auto-load .env - we'll handle it explicitly
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="allow",
+        env_nested_delimiter="__",  # Allow nested fields with __
     )
 
-    @validator("environment")
+    @field_validator("environment")
+    @classmethod
     def validate_environment(cls, v):
         """Validate environment value."""
         allowed = ["development", "testing", "staging", "production"]
@@ -99,7 +101,8 @@ class BaseConfig(BaseSettings):
             raise ValueError(f"Environment must be one of {allowed}")
         return v
 
-    @validator("log_level")
+    @field_validator("log_level")
+    @classmethod
     def validate_log_level(cls, v):
         """Validate log level."""
         allowed = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -126,7 +129,19 @@ class BaseConfig(BaseSettings):
         with open(yaml_path, "r") as f:
             data = yaml.safe_load(f) or {}
 
-        return cls(**data)
+        # Merge with defaults if defaults.yaml exists
+        defaults_path = Path("config/defaults.yaml")
+        if defaults_path.exists():
+            with open(defaults_path, "r") as f:
+                defaults = yaml.safe_load(f) or {}
+            # Deep merge defaults with loaded data
+            for key, value in defaults.items():
+                if key not in data:
+                    data[key] = value
+
+        # Create instance without loading .env file to avoid conflicts
+        # Use model_validate instead of direct instantiation to avoid env loading
+        return cls.model_validate(data)
 
     @classmethod
     def from_environment(cls) -> "BaseConfig":
