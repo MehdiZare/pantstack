@@ -1,0 +1,44 @@
+# Development environment configuration
+# Inherits from defaults.yaml and overrides for local development
+
+environment: development
+debug: true
+log_level: DEBUG
+
+# Development secret (override in .env)
+secret_key: development-secret-key-change-me
+
+# Database for development
+database:
+  supabase_url: http://localhost:54321
+  supabase_anon_key: development-anon-key
+
+# Redis for development
+redis:
+  host: localhost
+  port: 6379
+
+# Celery for development
+celery:
+  broker_url: redis://localhost:6379/0
+  result_backend: redis://localhost:6379/0
+
+# AWS LocalStack configuration
+aws:
+  localstack_enabled: true
+  localstack_endpoint: http://localhost:4566
+  s3_bucket: pantstack-dev
+  sqs_queue_url: http://localhost:4566/000000000000/pantstack-main-dev
+  eventbridge_bus: pantstack-events-dev
+
+# Development-specific settings
+auth_module:
+  access_token_expire_minutes: 60  # Longer for development
+  refresh_token_expire_days: 30
+  min_password_length: 6  # Relaxed for development
+  require_uppercase: false
+  require_lowercase: true
+  require_digit: false
+  require_special: false
+  require_email_verification: false  # Skip email verification
+  allow_registration: true

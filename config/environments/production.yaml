@@ -1,0 +1,63 @@
+# Production environment configuration
+# Most values should come from environment variables or SSM
+
+environment: production
+debug: false
+log_level: WARNING
+
+# Security - MUST be overridden via environment variables
+secret_key: ${SECRET_KEY}
+internal_api_key: ${INTERNAL_API_KEY}
+
+# Database - from environment
+database:
+  supabase_url: ${DB_SUPABASE_URL}
+  supabase_anon_key: ${DB_SUPABASE_ANON_KEY}
+  supabase_service_key: ${DB_SUPABASE_SERVICE_KEY}
+
+# Redis cluster
+redis:
+  host: ${REDIS_ENDPOINT}
+  port: 6379
+  password: ${REDIS_PASSWORD}
+  ssl: true
+
+# Celery production settings
+celery:
+  broker_url: ${CELERY_BROKER_URL}
+  result_backend: ${CELERY_RESULT_BACKEND}
+  worker_prefetch_multiplier: 1  # Better for long-running tasks
+  worker_max_tasks_per_child: 100  # Restart workers more frequently
+
+# AWS production
+aws:
+  region: ${AWS_REGION}
+  account_id: ${AWS_ACCOUNT_ID}
+  localstack_enabled: false
+  s3_bucket: ${S3_BUCKET}
+  sqs_queue_url: ${SQS_QUEUE_URL}
+  sqs_dlq_url: ${SQS_DLQ_URL}
+  eventbridge_bus: ${EVENTBRIDGE_BUS}
+  lambda_role_arn: ${LAMBDA_ROLE_ARN}
+
+# Production auth settings
+auth_module:
+  access_token_expire_minutes: 15  # Short for security
+  refresh_token_expire_days: 7
+  min_password_length: 12
+  require_uppercase: true
+  require_lowercase: true
+  require_digit: true
+  require_special: true
+  require_email_verification: true
+  allow_registration: false  # Controlled registration
+  max_login_attempts: 5
+  lockout_duration_minutes: 30
+
+# CORS - restrict in production
+cors_origins:
+  - https://app.pantstack.com
+  - https://www.pantstack.com
+
+# Rate limiting
+rate_limit: 60  # Requests per minute

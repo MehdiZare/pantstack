@@ -1,0 +1,12 @@
+name: celery
+runtime: python
+description: Infrastructure for Celery workers, Beat scheduler, and Flower monitoring
+
+config:
+  foundation_stack:
+    description: Reference to foundation stack
+    default: "${PULUMI_ORG}/pantstack-foundation/dev"
+
+  worker_count:
+    description: Number of Celery worker instances
+    default: 2
