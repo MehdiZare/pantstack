@@ -15,6 +15,7 @@ python_sources(
 pex_binary(
     name="agent_worker_pex",
     entry_point="services.agent.app.worker.run:main",
+    resolve="agent_core",
     dependencies=[":agent_worker_src"],
 )
 

@@ -79,9 +79,10 @@ class TestMakeCommands:
 
         mock_run.assert_called_once()
 
-        # Verify cruft is invoked
+        # Verify make command was called
         call_args = mock_run.call_args[0][0]
-        assert any("cruft" in str(arg) for arg in call_args)
+        assert "make" in call_args
+        assert "new-project" in call_args
 
     @patch("subprocess.run")
     def test_make_init_template(self, mock_run, project_root, temp_env_file):
@@ -179,9 +180,10 @@ class TestMakeCommands:
         )
 
         mock_run.assert_called()
-        # Should call docker-compose
-        call_args = str(mock_run.call_args)
-        assert "docker" in call_args.lower() or "compose" in call_args.lower()
+        # Should call make dev-up
+        call_args = mock_run.call_args[0][0]
+        assert "make" in call_args
+        assert "dev-up" in call_args
 
     @patch("subprocess.run")
     def test_make_dev_down(self, mock_run, project_root):

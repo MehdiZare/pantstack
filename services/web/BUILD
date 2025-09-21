@@ -44,12 +44,14 @@ python_sources(
 pex_binary(
     name="web_api_pex",
     entry_point="services.web.app.api.main:run",
+    resolve="web_api",
     dependencies=[":web_api_src"],
 )
 
 pex_binary(
     name="web_worker_pex",
     entry_point="services.web.app.worker.run:main",
+    resolve="web_core",
     dependencies=[":web_worker_src"],
 )
 

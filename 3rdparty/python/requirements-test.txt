@@ -16,7 +16,7 @@ httpx>=0.24,<1  # Async HTTP client for testing
 # Additional testing tools
 boto3>=1.28,<2  # AWS SDK for testing
 botocore>=1.31,<2  # AWS core library
-redis>=4.6,<5  # Redis client for testing
+redis>=5,<6  # Redis client for testing (aligned with shared)
 requests>=2.31,<3  # HTTP client for integration tests
 docker>=6.1,<7  # Docker integration for tests
 subprocess-tee>=0.4,<1  # Subprocess utilities

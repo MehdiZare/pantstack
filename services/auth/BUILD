@@ -24,6 +24,7 @@ python_sources(
 pex_binary(
     name="auth_api_pex",
     entry_point="services.auth.app.api.main:run",
+    resolve="auth_api",
     dependencies=[":auth_api_src"],
 )
 

@@ -1,5 +1,6 @@
 python_sources(
     sources=["**/*.py"],
+    resolve="test",  # Use test resolve
     dependencies=[
         "//3rdparty/python:shared_reqs#pydantic",
         "//3rdparty/python:shared_reqs#pydantic-settings",

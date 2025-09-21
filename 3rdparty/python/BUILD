@@ -2,7 +2,7 @@
 python_requirements(
     name="shared_reqs",
     source="requirements-shared.txt",
-    resolve="python-default",
+    resolve="test",  # Use test resolve for shared requirements
 )
 
 python_requirements(name="auth_core_reqs", source="requirements-auth-core.txt", resolve="auth_core")
