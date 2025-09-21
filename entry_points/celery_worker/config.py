@@ -27,7 +27,8 @@ class CeleryWorkerConfig(CeleryConfig):
     @classmethod
     def from_environment(cls) -> "CeleryWorkerConfig":
         """Load configuration from environment."""
-        config = super().from_environment()
+        # CeleryConfig doesn't have from_environment, so create directly
+        config = cls()
         config.worker_name = "pantstack-worker"
 
         # Auto-configure task routing for discovered services
