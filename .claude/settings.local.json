@@ -27,7 +27,14 @@
       "Bash(head:*)",
       "Bash(done)",
       "Bash(gh pr checks:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(tree:*)",
+      "WebFetch(domain:docs.localstack.cloud)",
+      "Bash(docker compose:*)",
+      "Bash(supabase init:*)",
+      "Bash(supabase start:*)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
+      "Bash(pants test:*)"
     ],
     "deny": [],
     "ask": []

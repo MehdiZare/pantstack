@@ -18,3 +18,10 @@ python_requirements(
     source="requirements-agent-core.txt",
     resolve="agent_core",
 )
+
+# Test requirements
+python_requirements(
+    name="test_reqs",
+    source="requirements-test.txt",
+    resolve="test",
+)
