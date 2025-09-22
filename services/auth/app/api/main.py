@@ -4,12 +4,12 @@ from contextlib import asynccontextmanager
 from typing import Dict, Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
-from ...domain.services import AuthenticationService, UserService, TokenService
+from ...adapters.repositories import InMemoryTokenRepository, InMemoryUserRepository
 from ...domain.models import UserRole
-from ...adapters.repositories import InMemoryUserRepository, InMemoryTokenRepository
+from ...domain.services import AuthenticationService, TokenService, UserService
 
 # Initialize repositories (in production, these would be injected)
 user_repo = InMemoryUserRepository()
@@ -72,7 +72,9 @@ async def healthz() -> Dict[str, str]:
     return {"status": "healthy", "service": "auth", "version": "1.0.0"}
 
 
-@app.post("/register", response_model=Dict[str, str], status_code=status.HTTP_201_CREATED)
+@app.post(
+    "/register", response_model=Dict[str, str], status_code=status.HTTP_201_CREATED
+)
 async def register(request: RegisterRequest) -> Dict[str, str]:
     """Register a new user.
 
@@ -87,25 +89,20 @@ async def register(request: RegisterRequest) -> Dict[str, str]:
     """
     try:
         user = await auth_service.register(
-            email=request.email,
-            username=request.username,
-            password=request.password
+            email=request.email, username=request.username, password=request.password
         )
         return {
             "status": "registered",
             "user_id": user.id,
             "email": user.email,
-            "message": "User registered successfully. Please verify your email."
+            "message": "User registered successfully. Please verify your email.",
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed"
+            detail="Registration failed",
         )
 
 
@@ -123,23 +120,18 @@ async def login(request: LoginRequest) -> AuthResponse:
         HTTPException: If authentication fails
     """
     user, token = await auth_service.authenticate(
-        email=request.email,
-        password=request.password
+        email=request.email, password=request.password
     )
 
     if not user or not token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
 
     # Record login
     await user_service.record_login(user.id)
 
-    return AuthResponse(
-        access_token=token.token,
-        user_id=user.id
-    )
+    return AuthResponse(access_token=token.token, user_id=user.id)
 
 
 @app.post("/verify", response_model=Dict[str, any])
@@ -159,15 +151,14 @@ async def verify(request: TokenVerifyRequest) -> Dict[str, any]:
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
 
     return {
         "valid": True,
         "user_id": user.id,
         "email": user.email,
-        "role": user.role.value
+        "role": user.role.value,
     }
 
 
@@ -188,14 +179,10 @@ async def refresh_token(refresh_token: str) -> AuthResponse:
 
     if not new_token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
-    return AuthResponse(
-        access_token=new_token.token,
-        user_id=new_token.user_id
-    )
+    return AuthResponse(access_token=new_token.token, user_id=new_token.user_id)
 
 
 @app.get("/users/me")
@@ -215,8 +202,7 @@ async def get_current_user(token: str) -> Dict[str, any]:
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
 
     return {
@@ -225,7 +211,7 @@ async def get_current_user(token: str) -> Dict[str, any]:
         "username": user.username,
         "role": user.role.value,
         "status": user.status.value,
-        "email_verified": user.email_verified
+        "email_verified": user.email_verified,
     }
 
 

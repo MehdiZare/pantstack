@@ -70,7 +70,14 @@ class ResourceTracker:
             try:
                 # Try to remove stack
                 result = subprocess.run(
-                    ["pulumi", "stack", "rm", f"{stack_name}-{env}", "--force", "--yes"],
+                    [
+                        "pulumi",
+                        "stack",
+                        "rm",
+                        f"{stack_name}-{env}",
+                        "--force",
+                        "--yes",
+                    ],
                     cwd=str(self.project_root),
                     capture_output=True,
                     text=True,
@@ -254,9 +261,7 @@ def cli_runner(resource_tracker) -> Generator[CliRunner, None, None]:
 
 @contextmanager
 def test_service(
-    project_root: Path,
-    resource_tracker: ResourceTracker,
-    name_suffix: str = "test"
+    project_root: Path, resource_tracker: ResourceTracker, name_suffix: str = "test"
 ) -> Generator[Tuple[str, Path], None, None]:
     """Context manager for test service creation and cleanup."""
     # Generate unique service name
@@ -347,6 +352,7 @@ def cleanup_verification(resource_tracker, request):
             # Report the issue
             orphan_names = [p.name for p in orphaned]
             import warnings
+
             warnings.warn(f"Found orphaned test resources: {orphan_names}", UserWarning)
 
 
@@ -371,12 +377,12 @@ def safe_subprocess():
             return proc
         except subprocess.TimeoutExpired as e:
             # Kill the process
-            if hasattr(e, 'process') and e.process:
+            if hasattr(e, "process") and e.process:
                 e.process.kill()
             raise
         finally:
             # Track for cleanup
-            if 'proc' in locals() and hasattr(proc, 'pid'):
+            if "proc" in locals() and hasattr(proc, "pid"):
                 processes.append(proc.pid)
 
     yield run_command
@@ -395,12 +401,8 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "no_cleanup_check: Skip cleanup verification for this test"
     )
-    config.addinivalue_line(
-        "markers", "destructive: Test that modifies the system"
-    )
-    config.addinivalue_line(
-        "markers", "safe: Test with no side effects"
-    )
+    config.addinivalue_line("markers", "destructive: Test that modifies the system")
+    config.addinivalue_line("markers", "safe: Test with no side effects")
     config.addinivalue_line(
         "markers", "requires_docker: Test requires Docker to be running"
     )

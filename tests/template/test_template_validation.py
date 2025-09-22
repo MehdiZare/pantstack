@@ -22,7 +22,9 @@ class TestTemplateValidation:
         # Navigate up to find the project root by looking for marker files
         for parent in current_file.parents:
             # Check for key template files that indicate we're at the root
-            if (parent / "cookiecutter.json").exists() and (parent / "pants.toml").exists():
+            if (parent / "cookiecutter.json").exists() and (
+                parent / "pants.toml"
+            ).exists():
                 return parent
 
         # If not found, we might be running from repo root already
@@ -37,9 +39,19 @@ class TestTemplateValidation:
     def all_template_files(self, template_dir):
         """Get all files in template, excluding common ignore patterns."""
         ignore_patterns = {
-            ".git", ".pants.d", "__pycache__", ".pytest_cache",
-            ".mypy_cache", "dist", "build", ".venv", "node_modules",
-            ".DS_Store", ".env", "*.pyc", "*.egg-info"
+            ".git",
+            ".pants.d",
+            "__pycache__",
+            ".pytest_cache",
+            ".mypy_cache",
+            "dist",
+            "build",
+            ".venv",
+            "node_modules",
+            ".DS_Store",
+            ".env",
+            "*.pyc",
+            "*.egg-info",
         }
 
         all_files = []
@@ -84,8 +96,9 @@ class TestTemplateValidation:
 
         # Check for undefined variables
         undefined_vars = used_vars - defined_vars
-        assert len(undefined_vars) == 0, \
-            f"Undefined template variables found: {undefined_vars}"
+        assert (
+            len(undefined_vars) == 0
+        ), f"Undefined template variables found: {undefined_vars}"
 
     def test_no_orphaned_template_variables(self, template_dir):
         """Test that all defined variables are actually used."""
@@ -103,7 +116,7 @@ class TestTemplateValidation:
         for file_path in template_dir.rglob("*"):
             if file_path.is_file() and not ".git" in str(file_path):
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
                         matches = template_pattern.findall(content)
                         used_vars.update(matches)
@@ -126,7 +139,7 @@ class TestTemplateValidation:
 
         for file_path in all_template_files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 # Check for inconsistent spacing in template variables
@@ -135,13 +148,16 @@ class TestTemplateValidation:
                 if "{{ cookiecutter ." in content:  # Extra space
                     inconsistent_patterns.append((file_path, "Extra space in variable"))
                 if "{{  cookiecutter" in content:  # Double space
-                    inconsistent_patterns.append((file_path, "Double space in template"))
+                    inconsistent_patterns.append(
+                        (file_path, "Double space in template")
+                    )
 
             except (UnicodeDecodeError, PermissionError):
                 continue
 
-        assert len(inconsistent_patterns) == 0, \
-            f"Inconsistent template syntax found: {inconsistent_patterns}"
+        assert (
+            len(inconsistent_patterns) == 0
+        ), f"Inconsistent template syntax found: {inconsistent_patterns}"
 
     def test_required_files_exist(self, template_dir):
         """Test that all required files for a template exist."""
@@ -167,7 +183,7 @@ class TestTemplateValidation:
                     alt_paths = [
                         template_dir / "requirements" / "requirements.txt",
                         template_dir / "3rdparty" / "python" / "requirements.txt",
-                        template_dir / "3rdparty" / "python" / "requirements-test.txt"
+                        template_dir / "3rdparty" / "python" / "requirements-test.txt",
                     ]
                     if not any(p.exists() for p in alt_paths):
                         missing_files.append(file_name)
@@ -192,8 +208,9 @@ class TestTemplateValidation:
             except yaml.YAMLError as e:
                 invalid_workflows.append((workflow_file.name, str(e)))
 
-        assert len(invalid_workflows) == 0, \
-            f"Invalid workflow files: {invalid_workflows}"
+        assert (
+            len(invalid_workflows) == 0
+        ), f"Invalid workflow files: {invalid_workflows}"
 
     def test_python_files_syntax(self, template_dir):
         """Test that all Python files have valid syntax."""
@@ -208,7 +225,7 @@ class TestTemplateValidation:
                 continue
 
             try:
-                with open(py_file, 'r', encoding='utf-8') as f:
+                with open(py_file, "r", encoding="utf-8") as f:
                     source = f.read()
 
                 # Skip template files that might have cookiecutter variables
@@ -220,8 +237,7 @@ class TestTemplateValidation:
             except SyntaxError as e:
                 syntax_errors.append((py_file.relative_to(template_dir), str(e)))
 
-        assert len(syntax_errors) == 0, \
-            f"Python syntax errors found: {syntax_errors}"
+        assert len(syntax_errors) == 0, f"Python syntax errors found: {syntax_errors}"
 
     def test_dockerfile_exists_and_valid(self, template_dir):
         """Test that Dockerfiles exist and are valid."""
@@ -260,9 +276,8 @@ class TestTemplateValidation:
         assert "help:" in content, "No help target in Makefile"
 
         # Check that targets have documentation (## comments)
-        documented_targets = re.findall(r'^[\w-]+:.*##\s+.+', content, re.MULTILINE)
-        assert len(documented_targets) > 5, \
-            "Not enough documented targets in Makefile"
+        documented_targets = re.findall(r"^[\w-]+:.*##\s+.+", content, re.MULTILINE)
+        assert len(documented_targets) > 5, "Not enough documented targets in Makefile"
 
     def test_env_example_completeness(self, template_dir):
         """Test that .env.example contains all necessary variables."""
@@ -286,8 +301,9 @@ class TestTemplateValidation:
             if var not in content:
                 missing_vars.append(var)
 
-        assert len(missing_vars) == 0, \
-            f"Missing environment variables in .env.example: {missing_vars}"
+        assert (
+            len(missing_vars) == 0
+        ), f"Missing environment variables in .env.example: {missing_vars}"
 
     def test_documentation_exists(self, template_dir):
         """Test that essential documentation exists."""
@@ -305,8 +321,9 @@ class TestTemplateValidation:
 
                 if required_sections:
                     for section in required_sections:
-                        assert section in content, \
-                            f"Missing section '{section}' in {doc_path}"
+                        assert (
+                            section in content
+                        ), f"Missing section '{section}' in {doc_path}"
 
     def test_scripts_are_executable(self, template_dir):
         """Test that shell scripts have executable permissions."""
@@ -329,16 +346,17 @@ class TestTemplateValidation:
             if not is_executable:
                 non_executable.append(script.relative_to(template_dir))
 
-        assert len(non_executable) == 0, \
-            f"Non-executable scripts found: {non_executable}"
+        assert (
+            len(non_executable) == 0
+        ), f"Non-executable scripts found: {non_executable}"
 
     def test_template_does_not_contain_secrets(self, all_template_files):
         """Test that template doesn't contain any secrets or sensitive data."""
         secret_patterns = [
             re.compile(r'aws_access_key_id\s*=\s*["\']?AKI[A-Z0-9]{16}'),
             re.compile(r'aws_secret_access_key\s*=\s*["\']?[A-Za-z0-9/+=]{40}'),
-            re.compile(r'GITHUB_TOKEN\s*=\s*ghp_[a-zA-Z0-9]{36}'),
-            re.compile(r'PULUMI_ACCESS_TOKEN\s*=\s*pul-[a-f0-9]{40}'),
+            re.compile(r"GITHUB_TOKEN\s*=\s*ghp_[a-zA-Z0-9]{36}"),
+            re.compile(r"PULUMI_ACCESS_TOKEN\s*=\s*pul-[a-f0-9]{40}"),
             re.compile(r'["\']sk_live_[a-zA-Z0-9]{24,}'),  # Stripe
             re.compile(r'["\']pk_live_[a-zA-Z0-9]{24,}'),  # Stripe
         ]
@@ -346,7 +364,7 @@ class TestTemplateValidation:
         files_with_secrets = []
         for file_path in all_template_files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 for pattern in secret_patterns:
@@ -357,8 +375,9 @@ class TestTemplateValidation:
             except (UnicodeDecodeError, PermissionError):
                 continue
 
-        assert len(files_with_secrets) == 0, \
-            f"Files containing potential secrets: {files_with_secrets}"
+        assert (
+            len(files_with_secrets) == 0
+        ), f"Files containing potential secrets: {files_with_secrets}"
 
     def test_service_structure_consistency(self, template_dir):
         """Test that all services follow the same structure."""
@@ -391,8 +410,9 @@ class TestTemplateValidation:
                             f"{service.name} missing {required_dir}"
                         )
 
-        assert len(inconsistent_services) == 0, \
-            f"Inconsistent service structure: {inconsistent_services}"
+        assert (
+            len(inconsistent_services) == 0
+        ), f"Inconsistent service structure: {inconsistent_services}"
 
     def test_pants_build_files_exist(self, template_dir):
         """Test that BUILD files exist for Pants build system."""
@@ -409,8 +429,9 @@ class TestTemplateValidation:
                     if not build_file.exists():
                         services_without_build.append(service.name)
 
-            assert len(services_without_build) == 0, \
-                f"Services missing BUILD files: {services_without_build}"
+            assert (
+                len(services_without_build) == 0
+            ), f"Services missing BUILD files: {services_without_build}"
 
     def test_template_metadata(self, template_dir):
         """Test that template has proper metadata."""

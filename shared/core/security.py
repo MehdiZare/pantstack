@@ -258,9 +258,7 @@ def create_access_token(
         "exp": expire,
     }
 
-    token = jwt.encode(
-        token_data, config.secret_key, algorithm=config.jwt_algorithm
-    )
+    token = jwt.encode(token_data, config.secret_key, algorithm=config.jwt_algorithm)
     return token
 
 
@@ -284,9 +282,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         # This should only be used in development
         import hashlib
 
-        return (
-            hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
-        )
+        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
 
 
 def get_password_hash(password: str) -> str:

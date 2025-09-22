@@ -2,7 +2,6 @@
 
 from dependency_injector import containers, providers
 
-from stack.libs.shared.core.config_strategy import ConfigLoader
 from services.auth.lib.core.config import AuthConfig
 from services.auth.lib.core.database import get_supabase_client
 from services.auth.lib.core.events import EventBackbone
@@ -11,15 +10,14 @@ from services.auth.lib.modules.auth.repositories import AuthRepository
 from services.auth.lib.modules.auth.services import AuthService
 from services.auth.lib.modules.users.repositories import UserRepository
 from services.auth.lib.modules.users.services import UserService
+from stack.libs.shared.core.config_strategy import ConfigLoader
 
 
 class CoreContainer(containers.DeclarativeContainer):
     """Core infrastructure container."""
 
     # Configuration
-    config = providers.Singleton(
-        AuthConfig
-    )
+    config = providers.Singleton(AuthConfig)
 
     # Infrastructure clients
     supabase_client = providers.Singleton(

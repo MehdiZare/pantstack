@@ -1,12 +1,14 @@
 """Token domain model"""
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 class TokenType(Enum):
     """Types of tokens"""
+
     ACCESS = "access"
     REFRESH = "refresh"
     VERIFICATION = "verification"
@@ -16,6 +18,7 @@ class TokenType(Enum):
 @dataclass
 class Token:
     """Token entity"""
+
     id: str
     user_id: str
     token_type: TokenType

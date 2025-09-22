@@ -1,12 +1,13 @@
 """Unit tests for auth service business logic."""
 
-from unittest.mock import MagicMock, patch
-import pytest
-import jwt
 from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
-from services.auth.lib.modules.users.services import UserService
+import jwt
+import pytest
+
 from services.auth.lib.modules.auth.services import AuthService
+from services.auth.lib.modules.users.services import UserService
 
 
 class TestUserService:
@@ -20,14 +21,12 @@ class TestUserService:
         user_service.repository.create.return_value = {
             "id": "user-123",
             "email": "test@example.com",
-            "name": "Test User"
+            "name": "Test User",
         }
 
         # Act
         result = user_service.create_user(
-            email="test@example.com",
-            password="SecurePass123!",
-            name="Test User"
+            email="test@example.com", password="SecurePass123!", name="Test User"
         )
 
         # Assert
@@ -42,7 +41,7 @@ class TestUserService:
         user_service.repository = MagicMock()
         user_service.repository.get.return_value = {
             "id": "user-123",
-            "email": "test@example.com"
+            "email": "test@example.com",
         }
 
         # Act
@@ -59,7 +58,7 @@ class TestUserService:
         user_service.repository = MagicMock()
         user_service.repository.update.return_value = {
             "id": "user-123",
-            "name": "Updated Name"
+            "name": "Updated Name",
         }
 
         # Act
@@ -95,14 +94,10 @@ class TestAuthService:
             JWT_SECRET="test-secret",
             JWT_ALGORITHM="HS256",
             JWT_EXPIRY_MINUTES=15,
-            JWT_REFRESH_EXPIRY_DAYS=30
+            JWT_REFRESH_EXPIRY_DAYS=30,
         )
 
-        user = {
-            "id": "user-123",
-            "email": "test@example.com",
-            "role": "user"
-        }
+        user = {"id": "user-123", "email": "test@example.com", "role": "user"}
 
         # Act
         tokens = auth_service.generate_tokens(user)
@@ -115,9 +110,7 @@ class TestAuthService:
 
         # Verify access token
         decoded = jwt.decode(
-            tokens["access_token"],
-            "test-secret",
-            algorithms=["HS256"]
+            tokens["access_token"], "test-secret", algorithms=["HS256"]
         )
         assert decoded["sub"] == "user-123"
         assert decoded["email"] == "test@example.com"
@@ -126,16 +119,13 @@ class TestAuthService:
         """Test valid token verification."""
         # Arrange
         auth_service = AuthService()
-        auth_service.config = MagicMock(
-            JWT_SECRET="test-secret",
-            JWT_ALGORITHM="HS256"
-        )
+        auth_service.config = MagicMock(JWT_SECRET="test-secret", JWT_ALGORITHM="HS256")
 
         # Generate a valid token
         payload = {
             "sub": "user-123",
             "email": "test@example.com",
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
         }
         token = jwt.encode(payload, "test-secret", algorithm="HS256")
 
@@ -150,15 +140,12 @@ class TestAuthService:
         """Test expired token verification."""
         # Arrange
         auth_service = AuthService()
-        auth_service.config = MagicMock(
-            JWT_SECRET="test-secret",
-            JWT_ALGORITHM="HS256"
-        )
+        auth_service.config = MagicMock(JWT_SECRET="test-secret", JWT_ALGORITHM="HS256")
 
         # Generate an expired token
         payload = {
             "sub": "user-123",
-            "exp": datetime.now(timezone.utc) - timedelta(hours=1)
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
         token = jwt.encode(payload, "test-secret", algorithm="HS256")
 
@@ -170,10 +157,7 @@ class TestAuthService:
         """Test invalid token verification."""
         # Arrange
         auth_service = AuthService()
-        auth_service.config = MagicMock(
-            JWT_SECRET="test-secret",
-            JWT_ALGORITHM="HS256"
-        )
+        auth_service.config = MagicMock(JWT_SECRET="test-secret", JWT_ALGORITHM="HS256")
 
         # Act & Assert
         with pytest.raises(jwt.InvalidTokenError):
@@ -189,7 +173,7 @@ class TestAuthService:
             "id": "user-123",
             "email": "test@example.com",
             "password_hash": "hashed_password",
-            "is_active": True
+            "is_active": True,
         }
         mock_bcrypt.checkpw.return_value = True
 
@@ -198,7 +182,9 @@ class TestAuthService:
 
         # Assert
         assert result["id"] == "user-123"
-        auth_service.user_repository.get_by_email.assert_called_once_with("test@example.com")
+        auth_service.user_repository.get_by_email.assert_called_once_with(
+            "test@example.com"
+        )
         mock_bcrypt.checkpw.assert_called_once()
 
     @patch("services.auth.lib.services.auth_service.bcrypt")
@@ -209,7 +195,7 @@ class TestAuthService:
         auth_service.user_repository = MagicMock()
         auth_service.user_repository.get_by_email.return_value = {
             "id": "user-123",
-            "password_hash": "hashed_password"
+            "password_hash": "hashed_password",
         }
         mock_bcrypt.checkpw.return_value = False
 

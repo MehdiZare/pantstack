@@ -28,7 +28,7 @@ class TestMakeCommands:
     @pytest.fixture
     def temp_env_file(self):
         """Create temporary .env file for testing."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".env", delete=False) as f:
             f.write("PROJECT_SLUG=test-project\n")
             f.write("AWS_ACCOUNT_ID=123456789012\n")
             f.write("AWS_REGION=us-east-1\n")
@@ -52,7 +52,7 @@ class TestMakeCommands:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         assert result.returncode == 0, f"make help failed: {result.stderr}"
@@ -65,16 +65,12 @@ class TestMakeCommands:
     def test_make_new_project(self, mock_run, project_root):
         """Test make new-project command."""
         mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Project created successfully"
+            returncode=0, stdout="Project created successfully"
         )
 
         # Simulate running the command
         result = subprocess.run(
-            ["make", "new-project"],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+            ["make", "new-project"], cwd=project_root, capture_output=True, text=True
         )
 
         mock_run.assert_called_once()
@@ -98,7 +94,7 @@ class TestMakeCommands:
             cwd=project_root,
             env=env,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Check that publish_template.sh would be called
@@ -107,16 +103,10 @@ class TestMakeCommands:
     @patch("subprocess.run")
     def test_make_bootstrap(self, mock_run, project_root):
         """Test make bootstrap command."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Bootstrap completed"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="Bootstrap completed")
 
         result = subprocess.run(
-            ["make", "bootstrap"],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+            ["make", "bootstrap"], cwd=project_root, capture_output=True, text=True
         )
 
         mock_run.assert_called()
@@ -134,17 +124,14 @@ class TestMakeCommands:
     @patch("subprocess.run")
     def test_make_new_service(self, mock_run, project_root):
         """Test make new-service command."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Service created"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="Service created")
 
         # Test with service name
         result = subprocess.run(
             ["make", "new-service", "S=orders"],
             cwd=project_root,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         mock_run.assert_called()
@@ -173,10 +160,7 @@ class TestMakeCommands:
         mock_run.return_value = MagicMock(returncode=0)
 
         result = subprocess.run(
-            ["make", "dev-up"],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+            ["make", "dev-up"], cwd=project_root, capture_output=True, text=True
         )
 
         mock_run.assert_called()
@@ -191,10 +175,7 @@ class TestMakeCommands:
         mock_run.return_value = MagicMock(returncode=0)
 
         result = subprocess.run(
-            ["make", "dev-down"],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+            ["make", "dev-down"], cwd=project_root, capture_output=True, text=True
         )
 
         mock_run.assert_called()
@@ -212,22 +193,17 @@ class TestMakeCommands:
         ]
 
         for command in stack_commands:
-            assert f"{command}:" in content or command in content, \
-                f"Missing stack command: {command}"
+            assert (
+                f"{command}:" in content or command in content
+            ), f"Missing stack command: {command}"
 
     @patch("subprocess.run")
     def test_make_seed_stacks(self, mock_run, project_root):
         """Test make seed-stacks command."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Stacks initialized"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="Stacks initialized")
 
         result = subprocess.run(
-            ["make", "seed-stacks"],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+            ["make", "seed-stacks"], cwd=project_root, capture_output=True, text=True
         )
 
         mock_run.assert_called()
@@ -263,7 +239,7 @@ class TestMakeCommands:
             cwd=project_root,
             env=env,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Verify environment variables are passed
@@ -282,16 +258,10 @@ class TestMakeCommands:
     @patch("subprocess.run")
     def test_make_quickstart(self, mock_run, project_root):
         """Test make quickstart interactive wizard."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Quickstart completed"
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="Quickstart completed")
 
         result = subprocess.run(
-            ["make", "quickstart"],
-            cwd=project_root,
-            capture_output=True,
-            text=True
+            ["make", "quickstart"], cwd=project_root, capture_output=True, text=True
         )
 
         mock_run.assert_called()
@@ -328,7 +298,7 @@ class TestMakeCommands:
                             ["make", command],
                             cwd=project_root,
                             capture_output=True,
-                            text=True
+                            text=True,
                         )
                         # Command should at least be callable
                         assert result is not None
@@ -340,16 +310,18 @@ class TestMakeCommands:
             ["make", "non_existent_target"],
             cwd=project_root,
             capture_output=True,
-            text=True
+            text=True,
         )
 
         # Should return non-zero exit code
         assert result.returncode != 0
 
         # Should show error message
-        assert "No rule to make target" in result.stderr or \
-               "Error" in result.stderr or \
-               "No such" in result.stderr
+        assert (
+            "No rule to make target" in result.stderr
+            or "Error" in result.stderr
+            or "No such" in result.stderr
+        )
 
     def test_make_parallel_execution(self, makefile_exists):
         """Test that Makefile supports parallel execution where appropriate."""

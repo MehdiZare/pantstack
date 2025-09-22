@@ -37,7 +37,9 @@ class ConfigStrategy(ABC):
         """
         pass
 
-    def _merge_configs(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_configs(
+        self, base: Dict[str, Any], override: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Deep merge configuration dictionaries.
 
         Args:
@@ -50,7 +52,11 @@ class ConfigStrategy(ABC):
         result = base.copy()
 
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = self._merge_configs(result[key], value)
             else:
                 result[key] = value
@@ -292,7 +298,12 @@ class ConfigLoader:
     }
 
     @classmethod
-    def load(cls, config_class: Type[T], service_name: str, environment: Optional[Environment] = None) -> T:
+    def load(
+        cls,
+        config_class: Type[T],
+        service_name: str,
+        environment: Optional[Environment] = None,
+    ) -> T:
         """Load configuration for service.
 
         Args:
@@ -335,7 +346,10 @@ class ConfigLoader:
                 raise ValueError("Debug must be disabled in production")
 
         # Validate AWS configuration if present
-        if hasattr(config, "aws") and environment in (Environment.STAGING, Environment.PRODUCTION):
+        if hasattr(config, "aws") and environment in (
+            Environment.STAGING,
+            Environment.PRODUCTION,
+        ):
             if not config.aws.region:
                 raise ValueError("AWS region is required")
             if not config.aws.account_id:

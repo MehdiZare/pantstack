@@ -66,8 +66,9 @@ class TestCookiecutterRendering:
             if full_path.exists():
                 with open(full_path) as f:
                     content = f.read()
-                    assert template_pattern in content, \
-                        f"No template variables found in {file_path}"
+                    assert (
+                        template_pattern in content
+                    ), f"No template variables found in {file_path}"
 
     @patch("subprocess.run")
     def test_cookiecutter_render_basic(self, mock_run, temp_output_dir):
@@ -79,7 +80,7 @@ class TestCookiecutterRendering:
             "github_visibility": "private",
             "aws_account_id": "123456789012",
             "aws_region": "us-east-1",
-            "pulumi_org": "test-org"
+            "pulumi_org": "test-org",
         }
 
         # Mock the cookiecutter command
@@ -104,7 +105,9 @@ class TestCookiecutterRendering:
         required_validations = {
             "project_slug": lambda x: isinstance(x, str) and len(x) > 0,
             "github_owner": lambda x: isinstance(x, str) and len(x) > 0,
-            "aws_account_id": lambda x: isinstance(x, str) and x.isdigit() and len(x) == 12,
+            "aws_account_id": lambda x: isinstance(x, str)
+            and x.isdigit()
+            and len(x) == 12,
             "aws_region": lambda x: isinstance(x, str) and "-" in x,
             "pulumi_org": lambda x: isinstance(x, str) and len(x) > 0,
         }
@@ -118,8 +121,9 @@ class TestCookiecutterRendering:
 
                 # Skip template variables in defaults
                 if not isinstance(value, str) or not value.startswith("{{"):
-                    assert validator(value), \
-                        f"Invalid default value for {field}: {value}"
+                    assert validator(
+                        value
+                    ), f"Invalid default value for {field}: {value}"
 
     def test_env_example_rendering(self, template_dir):
         """Test that .env.example contains correct template variables."""
@@ -157,7 +161,10 @@ class TestCookiecutterRendering:
                 content = f.read()
 
                 # Some workflows should have template variables
-                if "auto-deploy" in workflow_file.name or "pr-preview" in workflow_file.name:
+                if (
+                    "auto-deploy" in workflow_file.name
+                    or "pr-preview" in workflow_file.name
+                ):
                     # These might have AWS account IDs or regions
                     pass  # Template variables are optional in workflows
 
@@ -188,16 +195,16 @@ class TestCookiecutterRendering:
 
                 for pattern in patterns_to_avoid:
                     matches = re.search(pattern, content, re.IGNORECASE)
-                    assert not matches, \
-                        f"Potential hardcoded secret found in {file_path}: {pattern}"
+                    assert (
+                        not matches
+                    ), f"Potential hardcoded secret found in {file_path}: {pattern}"
 
     @patch("subprocess.run")
     def test_cruft_create_simulation(self, mock_run, temp_output_dir):
         """Test simulating cruft create command."""
         # Simulate cruft create
         mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="Project created successfully"
+            returncode=0, stdout="Project created successfully"
         )
 
         import subprocess
@@ -229,8 +236,9 @@ class TestCookiecutterRendering:
 
         for dir_path in expected_dirs:
             full_path = template_dir / dir_path
-            assert full_path.exists() and full_path.is_dir(), \
-                f"Expected directory not found: {dir_path}"
+            assert (
+                full_path.exists() and full_path.is_dir()
+            ), f"Expected directory not found: {dir_path}"
 
     def test_makefile_targets_exist(self, template_dir):
         """Test that Makefile contains expected targets."""
@@ -256,10 +264,7 @@ class TestCookiecutterRendering:
 
     def test_docker_compose_template_variables(self, template_dir):
         """Test docker-compose files for template variables."""
-        docker_files = [
-            "docker-compose.yml",
-            "docker-compose.local.yml"
-        ]
+        docker_files = ["docker-compose.yml", "docker-compose.local.yml"]
 
         for file_name in docker_files:
             file_path = template_dir / file_name
@@ -268,8 +273,9 @@ class TestCookiecutterRendering:
                     content = f.read()
 
                 # Check for environment variable references
-                assert "${" in content or "$" in content, \
-                    f"No environment variables found in {file_name}"
+                assert (
+                    "${" in content or "$" in content
+                ), f"No environment variables found in {file_name}"
 
     def test_pants_configuration(self, template_dir):
         """Test that pants.toml is properly configured."""
@@ -300,9 +306,9 @@ class TestCookiecutterRendering:
                 # Check service structure
                 expected_subdirs = ["app", "domain", "adapters", "tests"]
                 for subdir in expected_subdirs:
-                    assert (service_dir / subdir).exists() or \
-                           any((service_dir / d).exists() for d in ["app", "domain"]), \
-                           f"Service {service} missing expected directory: {subdir}"
+                    assert (service_dir / subdir).exists() or any(
+                        (service_dir / d).exists() for d in ["app", "domain"]
+                    ), f"Service {service} missing expected directory: {subdir}"
 
     def test_requirements_files(self, template_dir):
         """Test that requirements files exist and are valid."""
@@ -317,5 +323,6 @@ class TestCookiecutterRendering:
                     content = f.read()
                     # Basic validation - should have some packages
                     if content.strip():  # Skip empty files
-                        assert "==" in content or ">=" in content or "#" in content, \
-                            f"Invalid requirements format in {req_file.name}"
+                        assert (
+                            "==" in content or ">=" in content or "#" in content
+                        ), f"Invalid requirements format in {req_file.name}"

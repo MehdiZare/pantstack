@@ -66,7 +66,9 @@ class ServiceManifest(BaseModel):
     handlers: List[HandlerDefinition] = Field(default_factory=list)
 
     # Service metadata
-    dependencies: List[str] = Field(default_factory=list)  # Other services this depends on
+    dependencies: List[str] = Field(
+        default_factory=list
+    )  # Other services this depends on
     health_check_path: str = "/health"
     metrics_enabled: bool = True
 
@@ -86,7 +88,9 @@ class ServiceRegistry(ABC):
     def register(self, manifest: ServiceManifest) -> None:
         """Register a service manifest."""
         if manifest.service_name in self._manifests:
-            print(f"⚠️ Service {manifest.service_name} already registered, overwriting...")
+            print(
+                f"⚠️ Service {manifest.service_name} already registered, overwriting..."
+            )
 
         self._manifests[manifest.service_name] = manifest
         print(f"✅ Registered service: {manifest.service_name} v{manifest.version}")
@@ -131,6 +135,8 @@ class ServiceRegistry(ABC):
         for manifest in self._manifests.values():
             for dep in manifest.dependencies:
                 if dep not in registered:
-                    errors.append(f"{manifest.service_name} depends on unregistered service: {dep}")
+                    errors.append(
+                        f"{manifest.service_name} depends on unregistered service: {dep}"
+                    )
 
         return errors

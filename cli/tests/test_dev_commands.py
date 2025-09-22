@@ -29,13 +29,11 @@ class TestDevCommands:
         mock_run.return_value = Mock(
             returncode=0,
             stdout="Creating network... done\nCreating localstack... done",
-            stderr=""
+            stderr="",
         )
 
         result = mock_run(
-            ["docker-compose", "up", "-d"],
-            capture_output=True,
-            text=True
+            ["docker-compose", "up", "-d"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -48,17 +46,18 @@ class TestDevCommands:
         mock_run.return_value = Mock(
             returncode=0,
             stdout='{"services": {"s3": "available", "sqs": "available"}}',
-            stderr=""
+            stderr="",
         )
 
         result = mock_run(
             ["curl", "http://localhost:4566/_localstack/health"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         assert result.returncode == 0
         import json
+
         health_data = json.loads(result.stdout)
         assert "services" in health_data
 
@@ -67,16 +66,10 @@ class TestDevCommands:
         """Test Supabase local startup."""
         # Mock supabase start command
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout="Started supabase local development setup.",
-            stderr=""
+            returncode=0, stdout="Started supabase local development setup.", stderr=""
         )
 
-        result = mock_run(
-            ["supabase", "start"],
-            capture_output=True,
-            text=True
-        )
+        result = mock_run(["supabase", "start"], capture_output=True, text=True)
 
         assert result.returncode == 0
         assert "Started supabase" in result.stdout
@@ -86,11 +79,7 @@ class TestDevCommands:
         import os
 
         # Test environment variable detection
-        test_vars = {
-            "LOCALSTACK": "true",
-            "ENV": "development",
-            "DEBUG": "true"
-        }
+        test_vars = {"LOCALSTACK": "true", "ENV": "development", "DEBUG": "true"}
 
         for var, value in test_vars.items():
             # Simulate environment detection
@@ -103,15 +92,11 @@ class TestDevCommands:
         """Test service logs retrieval."""
         # Mock docker-compose logs command
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout="api_1 | [INFO] Starting FastAPI server...",
-            stderr=""
+            returncode=0, stdout="api_1 | [INFO] Starting FastAPI server...", stderr=""
         )
 
         result = mock_run(
-            ["docker-compose", "logs", "-f", "api"],
-            capture_output=True,
-            text=True
+            ["docker-compose", "logs", "-f", "api"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -122,7 +107,7 @@ class TestDevCommands:
         services_status = {
             "localstack": {"status": "running", "port": 4566},
             "supabase": {"status": "running", "port": 54321},
-            "redis": {"status": "running", "port": 6379}
+            "redis": {"status": "running", "port": 6379},
         }
 
         for service, status in services_status.items():
@@ -135,16 +120,10 @@ class TestDevCommands:
         """Test database migration commands."""
         # Mock database migration
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout="Running migrations... completed",
-            stderr=""
+            returncode=0, stdout="Running migrations... completed", stderr=""
         )
 
-        result = mock_run(
-            ["supabase", "db", "reset"],
-            capture_output=True,
-            text=True
-        )
+        result = mock_run(["supabase", "db", "reset"], capture_output=True, text=True)
 
         assert result.returncode == 0
         assert "migrations" in result.stdout
@@ -175,15 +154,11 @@ class TestDevCommands:
         """Test service restart functionality."""
         # Mock service restart
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout="Restarting api... done",
-            stderr=""
+            returncode=0, stdout="Restarting api... done", stderr=""
         )
 
         result = mock_run(
-            ["docker-compose", "restart", "api"],
-            capture_output=True,
-            text=True
+            ["docker-compose", "restart", "api"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -219,13 +194,11 @@ services:
         mock_run.return_value = Mock(
             returncode=0,
             stdout="Stopping containers... done\nRemoving volumes... done",
-            stderr=""
+            stderr="",
         )
 
         result = mock_run(
-            ["docker-compose", "down", "-v"],
-            capture_output=True,
-            text=True
+            ["docker-compose", "down", "-v"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -237,7 +210,7 @@ services:
             "LOCALSTACK_ENDPOINT": "http://localhost:4566",
             "SUPABASE_URL": "http://localhost:54321",
             "REDIS_URL": "redis://localhost:6379",
-            "ENV": "development"
+            "ENV": "development",
         }
 
         # Test environment variable structure
@@ -251,7 +224,7 @@ services:
         services = {
             "api": {"port": 8000, "health": "/health"},
             "worker": {"port": None, "health": None},
-            "localstack": {"port": 4566, "health": "/_localstack/health"}
+            "localstack": {"port": 4566, "health": "/_localstack/health"},
         }
 
         for service_name, config in services.items():

@@ -11,7 +11,9 @@ class CeleryWorkerConfig(CeleryConfig):
     """Extended Celery configuration for the worker."""
 
     worker_name: str = Field(default="pantstack-worker", description="Worker name")
-    worker_concurrency: int = Field(default=4, description="Number of concurrent workers")
+    worker_concurrency: int = Field(
+        default=4, description="Number of concurrent workers"
+    )
     worker_loglevel: str = Field(default="info", description="Log level")
     worker_send_events: bool = Field(default=True, description="Send worker events")
     worker_pool: str = Field(default="prefork", description="Worker pool type")

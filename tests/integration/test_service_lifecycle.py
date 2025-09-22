@@ -20,7 +20,10 @@ class TestServiceLifecycle:
         # Check if we're in a pants sandbox by looking for temp path patterns
         current_path = Path(__file__).resolve()
         if "/pants-sandbox-" in str(current_path) or "/tmp/" in str(current_path):
-            pytest.skip("Service lifecycle tests require filesystem access - skipping in sandbox", allow_module_level=True)
+            pytest.skip(
+                "Service lifecycle tests require filesystem access - skipping in sandbox",
+                allow_module_level=True,
+            )
 
     @pytest.fixture(scope="class")
     def project_root(self):
@@ -87,13 +90,18 @@ class TestServiceLifecycle:
             # Verify structure
             assert (path / "BUILD").exists(), "BUILD file not created"
             assert (path / "app" / "api").exists(), "app/api directory not created"
-            assert (path / "domain" / "models").exists(), "domain/models directory not created"
-            assert (path / "tests" / "unit").exists(), "tests/unit directory not created"
+            assert (
+                path / "domain" / "models"
+            ).exists(), "domain/models directory not created"
+            assert (
+                path / "tests" / "unit"
+            ).exists(), "tests/unit directory not created"
 
             # Verify BUILD file content
             build_content = (path / "BUILD").read_text()
-            assert f'entry_point="services.{name}.app.api.main:run"' in build_content, \
-                "BUILD file doesn't contain correct entry point"
+            assert (
+                f'entry_point="services.{name}.app.api.main:run"' in build_content
+            ), "BUILD file doesn't contain correct entry point"
 
     def test_service_directory_structure(self, project_root):
         """Test that all expected directories are created."""
@@ -125,7 +133,7 @@ class TestServiceLifecycle:
 
             # Check for essential BUILD file components
             expected_patterns = [
-                'python_sources(',
+                "python_sources(",
                 'name="core"',
                 'name="api_src"',
                 'name="worker_src"',
@@ -225,10 +233,12 @@ class TestServiceLifecycle:
             test_dir = path / "tests" / "unit"
             test_dir.mkdir(parents=True, exist_ok=True)
             test_file = test_dir / "test_basic.py"
-            test_file.write_text('''def test_placeholder():
+            test_file.write_text(
+                '''def test_placeholder():
     """Placeholder test."""
     assert True
-''')
+'''
+            )
 
             # Run Pants validation
             result = subprocess.run(
@@ -240,8 +250,9 @@ class TestServiceLifecycle:
             )
 
             # Pants operations might fail due to missing lockfiles, but command should run
-            assert result.returncode == 0 or "lockfile" in result.stderr.lower(), \
-                f"Pants operation failed unexpectedly: {result.stderr}"
+            assert (
+                result.returncode == 0 or "lockfile" in result.stderr.lower()
+            ), f"Pants operation failed unexpectedly: {result.stderr}"
 
     def test_cleanup_orphaned_services(self, project_root):
         """Test cleanup of orphaned test services."""
@@ -256,7 +267,9 @@ class TestServiceLifecycle:
             assert orphan_path.exists()
 
             # Run cleanup
-            cleanup_script = project_root / "scripts" / "test" / "test_service_lifecycle.sh"
+            cleanup_script = (
+                project_root / "scripts" / "test" / "test_service_lifecycle.sh"
+            )
             if cleanup_script.exists():
                 subprocess.run(
                     ["./scripts/test/test_service_lifecycle.sh", "cleanup"],

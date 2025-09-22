@@ -26,6 +26,7 @@ class TestSetupTools:
     def test_detect_os(self):
         """Test OS detection logic."""
         import platform
+
         system = platform.system().lower()
 
         # Should detect macOS or Linux
@@ -60,16 +61,10 @@ class TestSetupTools:
     def test_tool_version_check(self, mock_run):
         """Test version checking for tools."""
         # Mock version output
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout="Python 3.11.0",
-            stderr=""
-        )
+        mock_run.return_value = Mock(returncode=0, stdout="Python 3.11.0", stderr="")
 
         result = subprocess.run(
-            ["python3", "--version"],
-            capture_output=True,
-            text=True
+            ["python3", "--version"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -112,7 +107,7 @@ class TestSetupTools:
             "supabase",
             "pants",
             "jq",
-            "cruft"
+            "cruft",
         ]
 
         # All tools should be defined
@@ -125,16 +120,10 @@ class TestSetupTools:
         """Test Docker installation verification."""
         # Mock docker version command
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout="Docker version 20.10.0",
-            stderr=""
+            returncode=0, stdout="Docker version 20.10.0", stderr=""
         )
 
-        result = subprocess.run(
-            ["docker", "--version"],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)
 
         assert result.returncode == 0
 
@@ -143,7 +132,7 @@ class TestSetupTools:
         script_files = [
             "scripts/setup-tools.sh",
             "scripts/quick-setup.sh",
-            "scripts/setup/verify-tools.sh"
+            "scripts/setup/verify-tools.sh",
         ]
 
         for script in script_files:

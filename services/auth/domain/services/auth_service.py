@@ -1,10 +1,11 @@
 """Authentication domain service"""
-from typing import Optional, Tuple
+
 import hashlib
 import secrets
+from typing import Optional, Tuple
 
-from ..models import User, Token, TokenType
-from ..ports import UserRepository, TokenRepository
+from ..models import Token, TokenType, User
+from ..ports import TokenRepository, UserRepository
 
 
 class AuthenticationService:
@@ -14,7 +15,9 @@ class AuthenticationService:
         self.user_repo = user_repo
         self.token_repo = token_repo
 
-    async def authenticate(self, email: str, password: str) -> Tuple[Optional[User], Optional[Token]]:
+    async def authenticate(
+        self, email: str, password: str
+    ) -> Tuple[Optional[User], Optional[Token]]:
         """Authenticate a user with email and password"""
         user = await self.user_repo.find_by_email(email)
 
@@ -41,9 +44,7 @@ class AuthenticationService:
 
         # Create user
         user = await self.user_repo.create(
-            email=email,
-            username=username,
-            hashed_password=hashed_password
+            email=email, username=username, hashed_password=hashed_password
         )
 
         # Generate verification token
@@ -79,20 +80,18 @@ class AuthenticationService:
     def _hash_password(self, password: str) -> str:
         """Hash a password"""
         salt = secrets.token_hex(32)
-        pwdhash = hashlib.pbkdf2_hmac('sha256',
-                                      password.encode('utf-8'),
-                                      salt.encode('utf-8'),
-                                      100000)
+        pwdhash = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
+        )
         return f"{salt}${pwdhash.hex()}"
 
     def _verify_password(self, password: str, hashed: str) -> bool:
         """Verify a password against a hash"""
         try:
-            salt, pwdhash = hashed.split('$')
-            expected = hashlib.pbkdf2_hmac('sha256',
-                                          password.encode('utf-8'),
-                                          salt.encode('utf-8'),
-                                          100000)
+            salt, pwdhash = hashed.split("$")
+            expected = hashlib.pbkdf2_hmac(
+                "sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000
+            )
             return expected.hex() == pwdhash
         except (ValueError, AttributeError):
             return False
@@ -101,8 +100,6 @@ class AuthenticationService:
         """Generate a new token"""
         token_string = secrets.token_urlsafe(32)
         token = await self.token_repo.create(
-            user_id=user_id,
-            token_type=token_type,
-            token=token_string
+            user_id=user_id, token_type=token_type, token=token_string
         )
         return token

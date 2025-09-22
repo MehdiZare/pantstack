@@ -31,8 +31,7 @@ class ServiceHealth:
         while time.time() - start_time < timeout:
             try:
                 response = requests.get(
-                    "http://localhost:4566/_localstack/health",
-                    timeout=2
+                    "http://localhost:4566/_localstack/health", timeout=2
                 )
                 if response.status_code == 200:
                     data = response.json()
@@ -63,10 +62,7 @@ class ServiceHealth:
         """
         try:
             client = redis.Redis(
-                host=host,
-                port=port,
-                socket_connect_timeout=2,
-                socket_timeout=2
+                host=host, port=port, socket_connect_timeout=2, socket_timeout=2
             )
             client.ping()
             return True
@@ -79,7 +75,7 @@ class ServiceHealth:
         port: int = 5432,
         database: str = "postgres",
         user: str = "postgres",
-        password: str = "postgres"
+        password: str = "postgres",
     ) -> bool:
         """Check if PostgreSQL is available.
 
@@ -95,13 +91,14 @@ class ServiceHealth:
         """
         try:
             import psycopg2
+
             conn = psycopg2.connect(
                 host=host,
                 port=port,
                 database=database,
                 user=user,
                 password=password,
-                connect_timeout=2
+                connect_timeout=2,
             )
             conn.close()
             return True
@@ -110,8 +107,7 @@ class ServiceHealth:
 
     @staticmethod
     async def wait_for_dependencies(
-        services: List[str] = None,
-        timeout: int = 60
+        services: List[str] = None, timeout: int = 60
     ) -> Dict[str, bool]:
         """Wait for service dependencies to be ready.
 
@@ -172,7 +168,9 @@ class ConfigValidator:
     """Configuration validation utilities."""
 
     @staticmethod
-    def validate_config(config: BaseConfig, environment: Optional[Environment] = None) -> List[str]:
+    def validate_config(
+        config: BaseConfig, environment: Optional[Environment] = None
+    ) -> List[str]:
         """Validate configuration for environment.
 
         Args:
@@ -208,7 +206,11 @@ class ConfigValidator:
         errors = []
 
         # Security checks
-        if config.secret_key in ("", "change-me-in-production", "development-secret-key"):
+        if config.secret_key in (
+            "",
+            "change-me-in-production",
+            "development-secret-key",
+        ):
             errors.append("Production requires a secure secret_key")
 
         if config.debug:
@@ -243,7 +245,11 @@ class ConfigValidator:
         errors = []
 
         # Similar to production but allow debug
-        if config.secret_key in ("", "change-me-in-production", "development-secret-key"):
+        if config.secret_key in (
+            "",
+            "change-me-in-production",
+            "development-secret-key",
+        ):
             errors.append("Staging requires a secure secret_key")
 
         if hasattr(config, "aws"):
@@ -280,7 +286,10 @@ class ConfigValidator:
         """
         errors = ConfigValidator.validate_config(config, environment)
         if errors:
-            raise ValueError(f"Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
+            raise ValueError(
+                f"Configuration validation failed:\n"
+                + "\n".join(f"  - {e}" for e in errors)
+            )
 
 
 class StartupValidator:
@@ -296,11 +305,7 @@ class StartupValidator:
         Returns:
             Validation results
         """
-        results = {
-            "config_valid": False,
-            "dependencies_ready": {},
-            "errors": []
-        }
+        results = {"config_valid": False, "dependencies_ready": {}, "errors": []}
 
         # Validate configuration
         try:
@@ -322,8 +327,7 @@ class StartupValidator:
         if services_to_check:
             print(f"🔍 Checking dependencies: {', '.join(services_to_check)}")
             results["dependencies_ready"] = await ServiceHealth.wait_for_dependencies(
-                services=services_to_check,
-                timeout=30
+                services=services_to_check, timeout=30
             )
 
             # Check if all dependencies are ready

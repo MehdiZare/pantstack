@@ -1,6 +1,7 @@
 """Shared configuration classes for all services."""
 
 from typing import Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -29,7 +30,9 @@ class DatabaseConfig(BaseSettings):
     # Supabase configuration
     supabase_url: str = Field(default="", env="SUPABASE_URL")
     supabase_key: str = Field(default="", env="SUPABASE_KEY")
-    supabase_service_key: Optional[str] = Field(default=None, env="SUPABASE_SERVICE_KEY")
+    supabase_service_key: Optional[str] = Field(
+        default=None, env="SUPABASE_SERVICE_KEY"
+    )
 
     # Connection pool settings
     pool_size: int = Field(default=10, env="DB_POOL_SIZE")
@@ -96,7 +99,9 @@ class CeleryConfig(BaseSettings):
     """Celery configuration."""
 
     broker_url: str = Field(default="redis://localhost:6379/0", env="CELERY_BROKER_URL")
-    result_backend: str = Field(default="redis://localhost:6379/0", env="CELERY_RESULT_BACKEND")
+    result_backend: str = Field(
+        default="redis://localhost:6379/0", env="CELERY_RESULT_BACKEND"
+    )
 
     # Task settings
     task_serializer: str = Field(default="json", env="CELERY_TASK_SERIALIZER")
@@ -106,8 +111,12 @@ class CeleryConfig(BaseSettings):
     enable_utc: bool = Field(default=True, env="CELERY_ENABLE_UTC")
 
     # Worker settings
-    worker_prefetch_multiplier: int = Field(default=1, env="CELERY_WORKER_PREFETCH_MULTIPLIER")
-    worker_max_tasks_per_child: int = Field(default=1000, env="CELERY_WORKER_MAX_TASKS_PER_CHILD")
+    worker_prefetch_multiplier: int = Field(
+        default=1, env="CELERY_WORKER_PREFETCH_MULTIPLIER"
+    )
+    worker_max_tasks_per_child: int = Field(
+        default=1000, env="CELERY_WORKER_MAX_TASKS_PER_CHILD"
+    )
 
     class Config:
         env_file = ".env"

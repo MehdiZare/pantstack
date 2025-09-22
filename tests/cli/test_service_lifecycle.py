@@ -19,7 +19,9 @@ class TestServiceLifecycle:
             # This test only reads, no cleanup needed
             assert isinstance(services, list)
 
-    def test_create_single_service(self, project_root, resource_tracker, safe_subprocess):
+    def test_create_single_service(
+        self, project_root, resource_tracker, safe_subprocess
+    ):
         """Test creating a single service with automatic cleanup."""
         # Generate unique service name
         timestamp = str(int(time.time()))
@@ -40,11 +42,15 @@ class TestServiceLifecycle:
         assert service_path.exists(), f"Service {service_name} was not created"
         assert (service_path / "BUILD").exists(), "BUILD file not created"
         assert (service_path / "app" / "api").exists(), "app/api directory not created"
-        assert (service_path / "domain" / "models").exists(), "domain/models not created"
+        assert (
+            service_path / "domain" / "models"
+        ).exists(), "domain/models not created"
 
         # Service will be automatically cleaned up by resource_tracker
 
-    def test_create_multiple_services(self, project_root, resource_tracker, safe_subprocess):
+    def test_create_multiple_services(
+        self, project_root, resource_tracker, safe_subprocess
+    ):
         """Test creating multiple services with cleanup."""
         services_to_create = ["api", "worker", "admin"]
         created_services = []
@@ -75,7 +81,9 @@ class TestServiceLifecycle:
         # All services will be automatically cleaned up
 
     @pytest.mark.destructive
-    def test_service_with_docker_container(self, project_root, resource_tracker, mock_docker_client):
+    def test_service_with_docker_container(
+        self, project_root, resource_tracker, mock_docker_client
+    ):
         """Test service that creates Docker resources."""
         timestamp = str(int(time.time()))
         service_name = f"test_docker_{timestamp}"
@@ -96,8 +104,9 @@ class TestServiceLifecycle:
 
     def test_service_context_manager(self, project_root, resource_tracker):
         """Test using the service context manager."""
-        from tests.cli.conftest import test_service
         import os
+
+        from tests.cli.conftest import test_service
 
         # Use context manager for automatic cleanup
         with test_service(project_root, resource_tracker, "context") as (name, path):
@@ -121,7 +130,9 @@ class TestServiceLifecycle:
             assert not path.exists()
 
     @pytest.mark.requires_pants
-    def test_service_with_pants_build(self, project_root, resource_tracker, safe_subprocess):
+    def test_service_with_pants_build(
+        self, project_root, resource_tracker, safe_subprocess
+    ):
         """Test service with Pants build operations."""
         timestamp = str(int(time.time()))
         service_name = f"test_pants_{timestamp}"

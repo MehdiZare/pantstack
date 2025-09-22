@@ -1,7 +1,8 @@
 """In-memory implementation of token repository for development/testing"""
-from typing import Optional, List, Dict
-from datetime import datetime, timedelta
+
 import uuid
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
 from ...domain.models import Token, TokenType
 from ...domain.ports import TokenRepository
@@ -21,7 +22,7 @@ class InMemoryTokenRepository(TokenRepository):
         token_type: TokenType,
         token: str,
         expires_at: Optional[datetime] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
     ) -> Token:
         """Create a new token"""
         token_id = str(uuid.uuid4())
@@ -45,7 +46,7 @@ class InMemoryTokenRepository(TokenRepository):
             expires_at=expires_at,
             created_at=now,
             revoked=False,
-            metadata=metadata
+            metadata=metadata,
         )
 
         self.tokens[token_id] = token_obj
@@ -69,9 +70,7 @@ class InMemoryTokenRepository(TokenRepository):
         return None
 
     async def find_by_user(
-        self,
-        user_id: str,
-        token_type: Optional[TokenType] = None
+        self, user_id: str, token_type: Optional[TokenType] = None
     ) -> List[Token]:
         """Find tokens by user ID and optionally type"""
         token_ids = self.user_tokens.get(user_id, [])
@@ -109,7 +108,8 @@ class InMemoryTokenRepository(TokenRepository):
         """Delete all expired tokens"""
         now = datetime.utcnow()
         expired_ids = [
-            token_id for token_id, token in self.tokens.items()
+            token_id
+            for token_id, token in self.tokens.items()
             if token.expires_at <= now
         ]
 

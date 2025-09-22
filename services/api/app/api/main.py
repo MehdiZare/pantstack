@@ -1,6 +1,7 @@
 """
 API Service - Main Application Entry Point
 """
+
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
@@ -15,6 +16,7 @@ logger = get_logger(__name__)
 
 class HealthResponse(BaseModel):
     """Health check response model"""
+
     status: str = "healthy"
     service: str = "api"
     version: str = "1.0.0"
@@ -23,6 +25,7 @@ class HealthResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Standard error response"""
+
     error: str
     message: str
     details: Dict[str, Any] = {}
@@ -107,7 +110,7 @@ async def health_check():
         details={
             "uptime": "running",
             "environment": "development",
-        }
+        },
     )
 
 
@@ -122,7 +125,7 @@ async def api_status():
             "api": "healthy",
             "database": "connected",
             "cache": "connected",
-        }
+        },
     }
 
 
@@ -135,6 +138,7 @@ async def api_status():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

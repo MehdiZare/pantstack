@@ -56,7 +56,18 @@
       "Bash(./pants:*)",
       "Bash(python3:*)",
       "Bash(python3.12:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(rm:*)",
+      "Bash(S=test_orders ./scripts/new_service.sh:*)",
+      "Bash(cat:*)",
+      "Bash(xargs ls:*)",
+      "Bash(docker info:*)",
+      "Bash(ENV=test LOCALSTACK=true ./pants test tests/integration:test_localstack_services --no-test-use-coverage)",
+      "Bash(ENV=test LOCALSTACK=true ./pants test tests/integration:test_docker_compose --no-test-use-coverage)",
+      "Bash(ENV=test LOCALSTACK=true ./pants test tests/integration:: --tag=integration --no-test-use-coverage)",
+      "Bash(git commit:*)",
+      "Bash(for service in agent api auth web)",
+      "Bash(do echo \"=== $service service structure ===\" find \"/Users/mehdi/REPOs/open-source/pantstack/services/$service\" -type f -name \"*.py\")"
     ],
     "deny": [],
     "ask": []

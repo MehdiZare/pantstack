@@ -4,6 +4,7 @@ Event Processor Entry Point
 This service processes events from various sources and routes them
 to appropriate handlers.
 """
+
 import asyncio
 import signal
 import sys
@@ -104,9 +105,10 @@ async def main():
 if __name__ == "__main__":
     # Configure logging
     import logging
+
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     # Run the event processor

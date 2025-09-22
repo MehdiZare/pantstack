@@ -1,8 +1,8 @@
 """Core shared components for service architecture."""
 
-from .registry import ServiceRegistry, ServiceManifest, RouteDefinition, SecurityGroup
+from .config import BaseConfig, ConfigMixin
 from .discovery import AutoDiscovery
-from .config import ConfigMixin, BaseConfig
+from .registry import RouteDefinition, SecurityGroup, ServiceManifest, ServiceRegistry
 
 __all__ = [
     "ServiceRegistry",

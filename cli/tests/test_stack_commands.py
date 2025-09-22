@@ -30,13 +30,11 @@ class TestStackCommands:
         mock_run.return_value = Mock(
             returncode=0,
             stdout="Previewing update (dev):\n  + 2 to create\n  ~ 1 to update",
-            stderr=""
+            stderr="",
         )
 
         result = mock_run(
-            ["pulumi", "preview", "--stack", "dev"],
-            capture_output=True,
-            text=True
+            ["pulumi", "preview", "--stack", "dev"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -49,13 +47,11 @@ class TestStackCommands:
         mock_run.return_value = Mock(
             returncode=0,
             stdout="Updating (dev):\n  + 2 created\n  ~ 1 updated",
-            stderr=""
+            stderr="",
         )
 
         result = mock_run(
-            ["pulumi", "up", "--stack", "dev", "--yes"],
-            capture_output=True,
-            text=True
+            ["pulumi", "up", "--stack", "dev", "--yes"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -68,19 +64,15 @@ class TestStackCommands:
         outputs = {
             "api_url": "https://api.example.com",
             "database_endpoint": "db.example.com:5432",
-            "redis_endpoint": "redis.example.com:6379"
+            "redis_endpoint": "redis.example.com:6379",
         }
 
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout=json.dumps(outputs),
-            stderr=""
+            returncode=0, stdout=json.dumps(outputs), stderr=""
         )
 
         result = mock_run(
-            ["pulumi", "stack", "output", "--json"],
-            capture_output=True,
-            text=True
+            ["pulumi", "stack", "output", "--json"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -94,6 +86,7 @@ class TestStackCommands:
         invalid_environments = ["", "invalid!", "prod-test", "123"]
 
         import re
+
         pattern = r"^(dev|test|staging|prod|production)$"
 
         for env in valid_environments:
@@ -112,14 +105,13 @@ class TestStackCommands:
                 "name": "test-stack",
                 "runtime": "python",
                 "description": "Test stack",
-                "config": {
-                    "aws:region": "us-east-1"
-                }
+                "config": {"aws:region": "us-east-1"},
             }
 
             config_file = temp_path / "Pulumi.yaml"
             with config_file.open("w") as f:
                 import yaml  # pants: no-infer-dep
+
                 yaml.dump(pulumi_config, f)
 
             assert config_file.exists()
@@ -130,15 +122,13 @@ class TestStackCommands:
         """Test stack destruction."""
         # Mock pulumi destroy command
         mock_run.return_value = Mock(
-            returncode=0,
-            stdout="Destroying (dev):\n  - 3 deleted",
-            stderr=""
+            returncode=0, stdout="Destroying (dev):\n  - 3 deleted", stderr=""
         )
 
         result = mock_run(
             ["pulumi", "destroy", "--stack", "dev", "--yes"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
         assert result.returncode == 0
@@ -151,20 +141,21 @@ class TestStackCommands:
         # Mock stack status response
         status_response = {
             "name": "dev",
-            "current": {
-                "state": "succeeded",
-                "updateKind": "update"
-            }
+            "current": {"state": "succeeded", "updateKind": "update"},
         }
 
-        assert status_response["current"]["state"] in ["succeeded", "failed", "in-progress"]
+        assert status_response["current"]["state"] in [
+            "succeeded",
+            "failed",
+            "in-progress",
+        ]
 
     def test_service_stack_mapping(self):
         """Test service to stack mapping."""
         service_stack_map = {
             "auth": "auth-service-stack",
             "orders": "orders-service-stack",
-            "payments": "payments-service-stack"
+            "payments": "payments-service-stack",
         }
 
         for service, stack in service_stack_map.items():
@@ -178,13 +169,11 @@ class TestStackCommands:
         mock_run.return_value = Mock(
             returncode=0,
             stdout="2023-09-20T10:00:00Z [INFO] Deploying resources...",
-            stderr=""
+            stderr="",
         )
 
         result = mock_run(
-            ["pulumi", "logs", "--stack", "dev"],
-            capture_output=True,
-            text=True
+            ["pulumi", "logs", "--stack", "dev"], capture_output=True, text=True
         )
 
         assert result.returncode == 0
@@ -195,7 +184,7 @@ class TestStackCommands:
         resources = [
             {"type": "aws:ecs:Service", "name": "api-service"},
             {"type": "aws:ecs:TaskDefinition", "name": "api-task"},
-            {"type": "aws:ecs:Cluster", "name": "main-cluster"}
+            {"type": "aws:ecs:Cluster", "name": "main-cluster"},
         ]
 
         # Verify resource structure
@@ -209,7 +198,7 @@ class TestStackCommands:
         stack_dependencies = {
             "auth-stack": [],
             "orders-stack": ["auth-stack"],
-            "payments-stack": ["auth-stack", "orders-stack"]
+            "payments-stack": ["auth-stack", "orders-stack"],
         }
 
         # Test topological sort for deployment order
@@ -228,5 +217,9 @@ class TestStackCommands:
 
         deployment_order = resolve_dependencies(stack_dependencies)
 
-        assert deployment_order.index("auth-stack") < deployment_order.index("orders-stack")
-        assert deployment_order.index("orders-stack") < deployment_order.index("payments-stack")
+        assert deployment_order.index("auth-stack") < deployment_order.index(
+            "orders-stack"
+        )
+        assert deployment_order.index("orders-stack") < deployment_order.index(
+            "payments-stack"
+        )

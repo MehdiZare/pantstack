@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
-from moto import mock_s3, mock_sqs, mock_dynamodb
+from moto import mock_dynamodb, mock_s3, mock_sqs
 
 
 class TestAwsFactory:

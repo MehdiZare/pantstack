@@ -107,6 +107,7 @@ class TestCleanupManager:
 
             if result.returncode == 0:
                 import json
+
                 stacks = json.loads(result.stdout)
                 for stack in stacks:
                     stack_name = stack.get("name", "")
@@ -245,8 +246,19 @@ class TestCleanupManager:
         if services_dir.exists():
             for prefix in self.TEST_PREFIXES:
                 subprocess.run(
-                    ["find", str(services_dir), "-name", f"{prefix}*", "-type", "d",
-                     "-exec", "rm", "-rf", "{}", "+"],
+                    [
+                        "find",
+                        str(services_dir),
+                        "-name",
+                        f"{prefix}*",
+                        "-type",
+                        "d",
+                        "-exec",
+                        "rm",
+                        "-rf",
+                        "{}",
+                        "+",
+                    ],
                     capture_output=True,
                 )
 
@@ -259,7 +271,12 @@ class TestCleanupManager:
                         capture_output=True,
                     )
                     subprocess.run(
-                        ["docker", "rm", "-f", f"$(docker ps -a --filter name={prefix} -q)"],
+                        [
+                            "docker",
+                            "rm",
+                            "-f",
+                            f"$(docker ps -a --filter name={prefix} -q)",
+                        ],
                         shell=True,
                         capture_output=True,
                     )

@@ -1,11 +1,11 @@
 """Integration tests for CLI commands - actual execution tests."""
 
 import os
+import shutil
 import subprocess
 import tempfile
-from pathlib import Path
-import shutil
 import time
+from pathlib import Path
 
 import pytest
 
@@ -20,7 +20,7 @@ def in_sandbox():
 # Skip all tests if in sandbox
 pytestmark = pytest.mark.skipif(
     in_sandbox(),
-    reason="CLI integration tests require filesystem access - skipping in sandbox"
+    reason="CLI integration tests require filesystem access - skipping in sandbox",
 )
 
 
@@ -48,7 +48,10 @@ class TestCLICommandsIntegration:
             shutil.rmtree(service_path)
 
         # Cleanup requirements files
-        for pattern in [f"requirements-{temp_service_name}-*.txt", f"requirements-test_svc_*-*.txt"]:
+        for pattern in [
+            f"requirements-{temp_service_name}-*.txt",
+            f"requirements-test_svc_*-*.txt",
+        ]:
             for req_file in (project_root / "3rdparty" / "python").glob(pattern):
                 req_file.unlink()
 
@@ -59,7 +62,7 @@ class TestCLICommandsIntegration:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         assert result.returncode == 0, f"make help failed: {result.stderr}"
@@ -76,7 +79,7 @@ class TestCLICommandsIntegration:
             env={**os.environ, "S": temp_service_name},
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         assert result.returncode == 0, f"Script failed: {result.stderr}"
@@ -101,11 +104,14 @@ class TestCLICommandsIntegration:
             env={**os.environ, "S": temp_service_name},
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         assert result.returncode == 0, f"Script failed: {result.stderr}"
-        assert f"Enhanced service '{temp_service_name}' scaffolded successfully" in result.stdout
+        assert (
+            f"Enhanced service '{temp_service_name}' scaffolded successfully"
+            in result.stdout
+        )
 
         # Verify enhanced structure
         service_path = project_root / "services" / temp_service_name
@@ -131,7 +137,7 @@ class TestCLICommandsIntegration:
             env={**os.environ, "S": temp_service_name},
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         assert result.returncode == 0
@@ -144,7 +150,7 @@ class TestCLICommandsIntegration:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         # Should either succeed or report service exists
@@ -164,7 +170,7 @@ class TestCLICommandsIntegration:
             env={**os.environ, "S": temp_service_name},
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         if result.returncode == 0 and "scaffolded" in result.stdout:
@@ -173,7 +179,10 @@ class TestCLICommandsIntegration:
                 # Verify pants.toml was updated
                 pants_toml = project_root / "pants.toml"
                 content = pants_toml.read_text()
-                assert f"{temp_service_name}_core" in content or "Remember to add" in result.stdout
+                assert (
+                    f"{temp_service_name}_core" in content
+                    or "Remember to add" in result.stdout
+                )
 
     def test_requirements_files_creation(self, project_root, temp_service_name):
         """Test that requirements files are created."""
@@ -183,7 +192,7 @@ class TestCLICommandsIntegration:
             env={**os.environ, "S": temp_service_name},
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
 
         if result.returncode == 0 and "scaffolded" in result.stdout:
@@ -192,7 +201,11 @@ class TestCLICommandsIntegration:
             core_req = req_dir / f"requirements-{temp_service_name}-core.txt"
             api_req = req_dir / f"requirements-{temp_service_name}-api.txt"
 
-            assert core_req.exists() or api_req.exists() or "requirements" not in result.stdout
+            assert (
+                core_req.exists()
+                or api_req.exists()
+                or "requirements" not in result.stdout
+            )
 
     def test_script_error_handling_no_name(self, project_root):
         """Test script handles missing service name."""
@@ -201,7 +214,7 @@ class TestCLICommandsIntegration:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         # Should show usage message
@@ -221,7 +234,7 @@ class TestCLICommandsIntegration:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
 
         # Should complete (may report missing tools)
@@ -237,7 +250,7 @@ class TestCLICommandsIntegration:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         # Command should be recognized (may fail if pants not installed)
         assert "No rule to make target" not in result.stderr
@@ -248,7 +261,7 @@ class TestCLICommandsIntegration:
             cwd=project_root,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
         )
         assert "No rule to make target" not in result.stderr
 
@@ -271,7 +284,7 @@ class TestCLICommandsIntegration:
         scripts_dir = project_root / "scripts"
         for script in scripts_dir.glob("**/*.sh"):
             if script.is_file():
-                first_line = script.read_text().split('\n')[0]
+                first_line = script.read_text().split("\n")[0]
                 assert first_line.startswith("#!/"), f"{script} missing shebang"
                 assert "bash" in first_line or "sh" in first_line
 
@@ -281,7 +294,7 @@ class TestCLICommandsIntegration:
         important_scripts = [
             "new_service.sh",
             "bootstrap_foundation.sh",
-            "publish_template.sh"
+            "publish_template.sh",
         ]
 
         for script_name in important_scripts:
@@ -289,8 +302,9 @@ class TestCLICommandsIntegration:
             if script.exists():
                 content = script.read_text()
                 # Should have error handling
-                assert "set -e" in content or "set -euo" in content, \
-                    f"{script_name} missing error handling"
+                assert (
+                    "set -e" in content or "set -euo" in content
+                ), f"{script_name} missing error handling"
 
     def test_cleanup_after_failed_service_creation(self, project_root):
         """Test that partial service creation is handled properly."""

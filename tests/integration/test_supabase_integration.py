@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
 import pytest
 import requests
@@ -37,7 +37,10 @@ class TestSupabaseIntegration:
                     },
                     timeout=5,
                 )
-                if response.status_code in [200, 401]:  # 401 is expected without proper auth
+                if response.status_code in [
+                    200,
+                    401,
+                ]:  # 401 is expected without proper auth
                     return True
             except requests.exceptions.ConnectionError:
                 pass
@@ -91,7 +94,12 @@ class TestSupabaseIntegration:
         response = requests.get(realtime_url)
 
         # Realtime endpoint should be reachable
-        assert response.status_code in [200, 404, 405, 426]  # 426 = Upgrade Required (WebSocket)
+        assert response.status_code in [
+            200,
+            404,
+            405,
+            426,
+        ]  # 426 = Upgrade Required (WebSocket)
 
     def test_database_connection_via_rest_api(self, supabase_config, wait_for_supabase):
         """Test database connection via REST API."""
@@ -105,7 +113,11 @@ class TestSupabaseIntegration:
         )
 
         # Should get an error response indicating the database is accessible
-        assert response.status_code in [401, 404, 406]  # Auth or table not found errors are expected
+        assert response.status_code in [
+            401,
+            404,
+            406,
+        ]  # Auth or table not found errors are expected
 
     def test_service_discovery(self, supabase_config, wait_for_supabase):
         """Test Supabase service discovery."""
@@ -166,7 +178,10 @@ class TestSupabaseIntegration:
 
         # URL should be properly formatted
         assert supabase_config["url"].startswith("http")
-        assert "localhost" in supabase_config["url"] or "supabase" in supabase_config["url"]
+        assert (
+            "localhost" in supabase_config["url"]
+            or "supabase" in supabase_config["url"]
+        )
 
         # Keys should not be empty
         assert len(supabase_config["anon_key"]) > 0
@@ -191,7 +206,11 @@ class TestSupabaseIntegration:
     def test_websocket_endpoint_availability(self, supabase_config, wait_for_supabase):
         """Test WebSocket endpoint availability for realtime features."""
         # Parse WebSocket URL from HTTP URL
-        ws_url = supabase_config["url"].replace("http://", "ws://").replace("https://", "wss://")
+        ws_url = (
+            supabase_config["url"]
+            .replace("http://", "ws://")
+            .replace("https://", "wss://")
+        )
         ws_endpoint = f"{ws_url}/realtime/v1/websocket"
 
         # We can't easily test WebSocket connection without additional dependencies
@@ -229,4 +248,6 @@ class TestSupabaseIntegration:
         }
 
         for characteristic, condition in local_characteristics.items():
-            assert condition, f"Local development characteristic failed: {characteristic}"
+            assert (
+                condition
+            ), f"Local development characteristic failed: {characteristic}"

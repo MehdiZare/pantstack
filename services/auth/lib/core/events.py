@@ -172,7 +172,10 @@ class EventBackbone:
             await self._publish_to_sqs(event)
 
         # Send to EventBridge
-        if target in [EventTarget.ALL, EventTarget.EVENTBRIDGE] and self.eventbridge_client:
+        if (
+            target in [EventTarget.ALL, EventTarget.EVENTBRIDGE]
+            and self.eventbridge_client
+        ):
             await self._publish_to_eventbridge(event)
 
         return event.correlation_id
@@ -216,7 +219,10 @@ class EventBackbone:
                 QueueUrl=self.config.aws.sqs_queue_url,
                 MessageBody=event.to_json(),
                 MessageAttributes={
-                    "event_type": {"StringValue": event.event_type.value, "DataType": "String"},
+                    "event_type": {
+                        "StringValue": event.event_type.value,
+                        "DataType": "String",
+                    },
                     "service": {"StringValue": "auth", "DataType": "String"},
                 },
             )

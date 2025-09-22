@@ -1,7 +1,8 @@
 """In-memory implementation of user repository for development/testing"""
-from typing import Optional, List, Dict
-from datetime import datetime
+
 import uuid
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from ...domain.models import User, UserRole, UserStatus
 from ...domain.ports import UserRepository
@@ -29,7 +30,7 @@ class InMemoryUserRepository(UserRepository):
             status=UserStatus.PENDING_VERIFICATION,
             created_at=now,
             updated_at=now,
-            email_verified=False
+            email_verified=False,
         )
 
         self.users[user_id] = user
@@ -89,7 +90,7 @@ class InMemoryUserRepository(UserRepository):
     async def list(self, limit: int = 100, offset: int = 0) -> List[User]:
         """List users with pagination"""
         all_users = list(self.users.values())
-        return all_users[offset:offset + limit]
+        return all_users[offset : offset + limit]
 
     async def exists(self, email: str) -> bool:
         """Check if a user exists by email"""

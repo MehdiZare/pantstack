@@ -29,8 +29,8 @@ class AWSClientFactory:
         Returns:
             AWS configuration
         """
-        from shared.core.config_strategy import ConfigLoader
         from shared.core.config import BaseConfig
+        from shared.core.config_strategy import ConfigLoader
 
         base_config = ConfigLoader.load(BaseConfig, "shared")
         if hasattr(base_config, "aws"):
@@ -39,10 +39,7 @@ class AWSClientFactory:
 
     @lru_cache(maxsize=None)
     def get_client(
-        self,
-        service_name: str,
-        region_name: Optional[str] = None,
-        **kwargs
+        self, service_name: str, region_name: Optional[str] = None, **kwargs
     ) -> BaseClient:
         """Get or create AWS client.
 
@@ -65,10 +62,7 @@ class AWSClientFactory:
         return client
 
     def _create_client(
-        self,
-        service_name: str,
-        region_name: Optional[str] = None,
-        **kwargs
+        self, service_name: str, region_name: Optional[str] = None, **kwargs
     ) -> BaseClient:
         """Create new AWS client.
 
@@ -129,10 +123,7 @@ class AWSClientFactory:
         return getattr(endpoints, service_name, None)
 
     def get_resource(
-        self,
-        service_name: str,
-        region_name: Optional[str] = None,
-        **kwargs
+        self, service_name: str, region_name: Optional[str] = None, **kwargs
     ) -> Any:
         """Get AWS resource.
 

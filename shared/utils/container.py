@@ -29,9 +29,7 @@ def get_container() -> Any:
         RuntimeError: If container not set
     """
     if _global_container is None:
-        raise RuntimeError(
-            "Container not initialized. Call set_container() first."
-        )
+        raise RuntimeError("Container not initialized. Call set_container() first.")
     return _global_container
 
 
@@ -63,9 +61,7 @@ def get_config() -> BaseConfig:
         except RuntimeError:
             pass
 
-        raise RuntimeError(
-            "Configuration not initialized. Call set_config() first."
-        )
+        raise RuntimeError("Configuration not initialized. Call set_config() first.")
     return _global_config
 
 

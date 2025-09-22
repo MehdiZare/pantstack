@@ -4,13 +4,6 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
-from stack.libs.shared.core.config import BaseConfig
-from stack.libs.shared.core.security import (
-    create_access_token,
-    get_password_hash,
-    verify_password,
-)
-
 from services.auth.lib.core.events import EventBackbone, EventType
 from services.auth.lib.modules.auth.repositories import AuthRepository
 from services.auth.lib.modules.auth.schemas import (
@@ -21,6 +14,12 @@ from services.auth.lib.modules.auth.schemas import (
 )
 from services.auth.lib.modules.users.repositories import UserRepository
 from services.auth.lib.modules.users.schemas import User, UserCreate
+from stack.libs.shared.core.config import BaseConfig
+from stack.libs.shared.core.security import (
+    create_access_token,
+    get_password_hash,
+    verify_password,
+)
 
 
 class AuthService:
@@ -208,9 +207,7 @@ class AuthService:
             raise ValueError("User not found or inactive")
 
         # Generate new access token
-        access_token = create_access_token(
-            user.id, user.email, user.role, self.config
-        )
+        access_token = create_access_token(user.id, user.email, user.role, self.config)
 
         await self.event_backbone.publish(
             EventType.TOKEN_REFRESHED, {"user_id": user_id}, user_id=user_id
@@ -339,16 +336,16 @@ class AuthService:
             Token response
         """
         # Generate access token
-        access_token = create_access_token(
-            user.id, user.email, user.role, self.config
-        )
+        access_token = create_access_token(user.id, user.email, user.role, self.config)
 
         # Generate refresh token
         refresh_token = secrets.token_urlsafe(32)
         refresh_expires = self.config.auth_module.refresh_token_expire_days * 86400
 
         # Store refresh token
-        await self.auth_repo.store_refresh_token(user.id, refresh_token, refresh_expires)
+        await self.auth_repo.store_refresh_token(
+            user.id, refresh_token, refresh_expires
+        )
 
         await self.event_backbone.publish(
             EventType.TOKEN_GENERATED, {"user_id": user.id}, user_id=user.id
@@ -373,15 +370,14 @@ class AuthService:
             ValueError: If token is invalid
         """
         from datetime import datetime
-        from stack.libs.shared.core.security import decode_access_token
+
         from services.auth.lib.modules.auth.schemas import TokenVerifyResponse
+        from stack.libs.shared.core.security import decode_access_token
 
         try:
             # Decode the token
             payload = decode_access_token(
-                token,
-                self.config.jwt_secret_key,
-                self.config.jwt_algorithm
+                token, self.config.jwt_secret_key, self.config.jwt_algorithm
             )
 
             # Check if token is blacklisted
@@ -392,12 +388,9 @@ class AuthService:
                 valid=True,
                 user_id=payload.get("sub"),
                 email=payload.get("email"),
-                expires_at=datetime.fromtimestamp(payload.get("exp", 0))
+                expires_at=datetime.fromtimestamp(payload.get("exp", 0)),
             )
         except Exception:
             return TokenVerifyResponse(
-                valid=False,
-                user_id=None,
-                email=None,
-                expires_at=None
+                valid=False, user_id=None, email=None, expires_at=None
             )

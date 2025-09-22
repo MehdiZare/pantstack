@@ -1,4 +1,5 @@
 """User domain model"""
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -7,6 +8,7 @@ from typing import Optional
 
 class UserRole(Enum):
     """User roles in the system"""
+
     ADMIN = "admin"
     USER = "user"
     GUEST = "guest"
@@ -14,6 +16,7 @@ class UserRole(Enum):
 
 class UserStatus(Enum):
     """User account status"""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
@@ -23,6 +26,7 @@ class UserStatus(Enum):
 @dataclass
 class User:
     """User entity"""
+
     id: str
     email: str
     username: str

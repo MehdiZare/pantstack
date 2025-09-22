@@ -14,7 +14,11 @@ def main():
     # Worker configuration
     loglevel = os.getenv("CELERY_LOGLEVEL", "info")
     concurrency = int(os.getenv("CELERY_CONCURRENCY", "4"))
-    queues = os.getenv("CELERY_QUEUES", "").split(",") if os.getenv("CELERY_QUEUES") else None
+    queues = (
+        os.getenv("CELERY_QUEUES", "").split(",")
+        if os.getenv("CELERY_QUEUES")
+        else None
+    )
     pool = os.getenv("CELERY_POOL", "prefork")
 
     # Create worker

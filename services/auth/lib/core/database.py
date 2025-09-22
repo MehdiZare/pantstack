@@ -2,9 +2,8 @@
 
 from typing import Optional
 
-from supabase import Client, create_client
-
 from stack.libs.shared.core.config import DatabaseConfig
+from supabase import Client, create_client
 
 
 def get_supabase_client(config: DatabaseConfig) -> Optional[Client]:

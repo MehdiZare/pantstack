@@ -1,6 +1,7 @@
 """Unit tests for auth repository layer."""
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 from botocore.exceptions import ClientError
 
@@ -15,12 +16,14 @@ class TestUserRepository:
         # Arrange
         repo = UserRepository()
         repo.table = mock_dynamodb
-        mock_dynamodb.put_item.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_dynamodb.put_item.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200}
+        }
 
         user_data = {
             "email": "test@example.com",
             "name": "Test User",
-            "password_hash": "hashed"
+            "password_hash": "hashed",
         }
 
         # Act
@@ -41,7 +44,7 @@ class TestUserRepository:
             "Item": {
                 "userId": "user-123",
                 "email": "test@example.com",
-                "name": "Test User"
+                "name": "Test User",
             }
         }
 
@@ -73,11 +76,9 @@ class TestUserRepository:
         repo = UserRepository()
         repo.table = mock_dynamodb
         mock_dynamodb.query.return_value = {
-            "Items": [{
-                "userId": "user-123",
-                "email": "test@example.com",
-                "name": "Test User"
-            }]
+            "Items": [
+                {"userId": "user-123", "email": "test@example.com", "name": "Test User"}
+            ]
         }
 
         # Act
@@ -96,7 +97,7 @@ class TestUserRepository:
             "Attributes": {
                 "userId": "user-123",
                 "name": "Updated Name",
-                "updated_at": "2024-01-01T00:00:00Z"
+                "updated_at": "2024-01-01T00:00:00Z",
             }
         }
 
@@ -113,7 +114,9 @@ class TestUserRepository:
         # Arrange
         repo = UserRepository()
         repo.table = mock_dynamodb
-        mock_dynamodb.delete_item.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_dynamodb.delete_item.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200}
+        }
 
         # Act
         result = repo.delete("user-123")
@@ -143,9 +146,9 @@ class TestUserRepository:
         mock_dynamodb.scan.return_value = {
             "Items": [
                 {"userId": "user-1", "email": "user1@example.com"},
-                {"userId": "user-2", "email": "user2@example.com"}
+                {"userId": "user-2", "email": "user2@example.com"},
             ],
-            "LastEvaluatedKey": {"userId": "user-2"}
+            "LastEvaluatedKey": {"userId": "user-2"},
         }
 
         # Act
@@ -165,7 +168,7 @@ class TestUserRepository:
             "Responses": {
                 "users-test": [
                     {"userId": "user-1", "email": "user1@example.com"},
-                    {"userId": "user-2", "email": "user2@example.com"}
+                    {"userId": "user-2", "email": "user2@example.com"},
                 ]
             }
         }

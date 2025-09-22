@@ -1,4 +1,5 @@
 """Infrastructure for Agent Service"""
+
 import pulumi
 import pulumi_aws as aws
 from pulumi import Config, Output, export
@@ -88,20 +89,24 @@ dlq = aws.sqs.Queue(
 sqs_policy = aws.iam.RolePolicy(
     f"{service_name}-sqs-policy",
     role=task_role.id,
-    policy=pulumi.Output.json_dumps({
-        "Version": "2012-10-17",
-        "Statement": [{
-            "Effect": "Allow",
-            "Action": [
-                "sqs:ReceiveMessage",
-                "sqs:DeleteMessage",
-                "sqs:SendMessage",
-                "sqs:GetQueueAttributes",
-                "sqs:ChangeMessageVisibility",
+    policy=pulumi.Output.json_dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "sqs:ReceiveMessage",
+                        "sqs:DeleteMessage",
+                        "sqs:SendMessage",
+                        "sqs:GetQueueAttributes",
+                        "sqs:ChangeMessageVisibility",
+                    ],
+                    "Resource": [task_queue.arn, dlq.arn],
+                }
             ],
-            "Resource": [task_queue.arn, dlq.arn],
-        }],
-    }),
+        }
+    ),
 )
 
 # Create S3 bucket for task artifacts
@@ -122,22 +127,26 @@ artifact_bucket = aws.s3.Bucket(
 s3_policy = aws.iam.RolePolicy(
     f"{service_name}-s3-policy",
     role=task_role.id,
-    policy=pulumi.Output.json_dumps({
-        "Version": "2012-10-17",
-        "Statement": [{
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:DeleteObject",
-                "s3:ListBucket",
+    policy=pulumi.Output.json_dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:DeleteObject",
+                        "s3:ListBucket",
+                    ],
+                    "Resource": [
+                        artifact_bucket.arn,
+                        pulumi.Output.concat(artifact_bucket.arn, "/*"),
+                    ],
+                }
             ],
-            "Resource": [
-                artifact_bucket.arn,
-                pulumi.Output.concat(artifact_bucket.arn, "/*"),
-            ],
-        }],
-    }),
+        }
+    ),
 )
 
 # Create ECS task definition for API
@@ -150,35 +159,44 @@ api_task_definition = aws.ecs.TaskDefinition(
     requires_compatibilities=["FARGATE"],
     execution_role_arn=task_execution_role.arn,
     task_role_arn=task_role.arn,
-    container_definitions=pulumi.Output.json_dumps([{
-        "name": f"{service_name}-api",
-        "image": f"{project_name}/{service_name}-api:latest",
-        "portMappings": [{
-            "containerPort": 8000,
-            "protocol": "tcp",
-        }],
-        "environment": [
-            {"name": "ENV", "value": env},
-            {"name": "SERVICE_NAME", "value": service_name},
-            {"name": "QUEUE_URL", "value": task_queue.url},
-            {"name": "BUCKET_NAME", "value": artifact_bucket.bucket},
-        ],
-        "logConfiguration": {
-            "logDriver": "awslogs",
-            "options": {
-                "awslogs-group": log_group.name,
-                "awslogs-region": aws.get_region().name,
-                "awslogs-stream-prefix": "api",
-            },
-        },
-        "healthCheck": {
-            "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
-            "interval": 30,
-            "timeout": 5,
-            "retries": 3,
-            "startPeriod": 60,
-        },
-    }]),
+    container_definitions=pulumi.Output.json_dumps(
+        [
+            {
+                "name": f"{service_name}-api",
+                "image": f"{project_name}/{service_name}-api:latest",
+                "portMappings": [
+                    {
+                        "containerPort": 8000,
+                        "protocol": "tcp",
+                    }
+                ],
+                "environment": [
+                    {"name": "ENV", "value": env},
+                    {"name": "SERVICE_NAME", "value": service_name},
+                    {"name": "QUEUE_URL", "value": task_queue.url},
+                    {"name": "BUCKET_NAME", "value": artifact_bucket.bucket},
+                ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": log_group.name,
+                        "awslogs-region": aws.get_region().name,
+                        "awslogs-stream-prefix": "api",
+                    },
+                },
+                "healthCheck": {
+                    "command": [
+                        "CMD-SHELL",
+                        "curl -f http://localhost:8000/health || exit 1",
+                    ],
+                    "interval": 30,
+                    "timeout": 5,
+                    "retries": 3,
+                    "startPeriod": 60,
+                },
+            }
+        ]
+    ),
 )
 
 # Create ECS task definition for Worker
@@ -191,25 +209,29 @@ worker_task_definition = aws.ecs.TaskDefinition(
     requires_compatibilities=["FARGATE"],
     execution_role_arn=task_execution_role.arn,
     task_role_arn=task_role.arn,
-    container_definitions=pulumi.Output.json_dumps([{
-        "name": f"{service_name}-worker",
-        "image": f"{project_name}/{service_name}-worker:latest",
-        "environment": [
-            {"name": "ENV", "value": env},
-            {"name": "SERVICE_NAME", "value": service_name},
-            {"name": "QUEUE_URL", "value": task_queue.url},
-            {"name": "BUCKET_NAME", "value": artifact_bucket.bucket},
-            {"name": "WORKER_CONCURRENCY", "value": "4"},
-        ],
-        "logConfiguration": {
-            "logDriver": "awslogs",
-            "options": {
-                "awslogs-group": log_group.name,
-                "awslogs-region": aws.get_region().name,
-                "awslogs-stream-prefix": "worker",
-            },
-        },
-    }]),
+    container_definitions=pulumi.Output.json_dumps(
+        [
+            {
+                "name": f"{service_name}-worker",
+                "image": f"{project_name}/{service_name}-worker:latest",
+                "environment": [
+                    {"name": "ENV", "value": env},
+                    {"name": "SERVICE_NAME", "value": service_name},
+                    {"name": "QUEUE_URL", "value": task_queue.url},
+                    {"name": "BUCKET_NAME", "value": artifact_bucket.bucket},
+                    {"name": "WORKER_CONCURRENCY", "value": "4"},
+                ],
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": log_group.name,
+                        "awslogs-region": aws.get_region().name,
+                        "awslogs-stream-prefix": "worker",
+                    },
+                },
+            }
+        ]
+    ),
 )
 
 # Create security group for services
@@ -266,11 +288,13 @@ api_service = aws.ecs.Service(
         "security_groups": [security_group.id],
         "assign_public_ip": True,
     },
-    load_balancers=[{
-        "target_group_arn": target_group.arn,
-        "container_name": f"{service_name}-api",
-        "container_port": 8000,
-    }],
+    load_balancers=[
+        {
+            "target_group_arn": target_group.arn,
+            "container_name": f"{service_name}-api",
+            "container_port": 8000,
+        }
+    ],
 )
 
 # Create ECS service for Worker
@@ -291,7 +315,12 @@ worker_service = aws.ecs.Service(
 api_scaling_target = aws.appautoscaling.Target(
     f"{service_name}-api-scaling-target",
     service_namespace="ecs",
-    resource_id=pulumi.Output.concat("service/", cluster_arn.apply(lambda arn: arn.split("/")[-1]), "/", api_service.name),
+    resource_id=pulumi.Output.concat(
+        "service/",
+        cluster_arn.apply(lambda arn: arn.split("/")[-1]),
+        "/",
+        api_service.name,
+    ),
     scalable_dimension="ecs:service:DesiredCount",
     min_capacity=1,
     max_capacity=10,
@@ -316,7 +345,12 @@ cpu_scaling_policy = aws.appautoscaling.Policy(
 worker_scaling_target = aws.appautoscaling.Target(
     f"{service_name}-worker-scaling-target",
     service_namespace="ecs",
-    resource_id=pulumi.Output.concat("service/", cluster_arn.apply(lambda arn: arn.split("/")[-1]), "/", worker_service.name),
+    resource_id=pulumi.Output.concat(
+        "service/",
+        cluster_arn.apply(lambda arn: arn.split("/")[-1]),
+        "/",
+        worker_service.name,
+    ),
     scalable_dimension="ecs:service:DesiredCount",
     min_capacity=1,
     max_capacity=20,

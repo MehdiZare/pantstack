@@ -1,6 +1,7 @@
 """User management domain service"""
-from typing import Optional, List
+
 from datetime import datetime
+from typing import List, Optional
 
 from ..models import User, UserRole, UserStatus
 from ..ports import UserRepository
@@ -38,9 +39,7 @@ class UserService:
     async def activate_user(self, user_id: str) -> Optional[User]:
         """Activate a user account"""
         return await self.update_user(
-            user_id,
-            status=UserStatus.ACTIVE,
-            email_verified=True
+            user_id, status=UserStatus.ACTIVE, email_verified=True
         )
 
     async def suspend_user(self, user_id: str) -> Optional[User]:

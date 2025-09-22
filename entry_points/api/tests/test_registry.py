@@ -1,9 +1,10 @@
 """Tests for API service registry."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-from fastapi import FastAPI, APIRouter
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from fastapi import APIRouter, FastAPI
 
 from entry_points.api.registry import APIRegistry
 
@@ -42,7 +43,9 @@ class TestAPIRegistry:
         mock_services_path.iterdir.return_value = [mock_auth_dir, mock_web_dir]
 
         # Mock module existence
-        with patch("entry_points.api.registry.importlib.util.find_spec") as mock_find_spec:
+        with patch(
+            "entry_points.api.registry.importlib.util.find_spec"
+        ) as mock_find_spec:
             mock_find_spec.return_value = Mock()  # Module exists
 
             registry = APIRegistry()
@@ -145,10 +148,7 @@ class TestAPIRegistry:
 
     def test_health_check(self, registry):
         """Test health check method."""
-        registry.services = {
-            "auth": Mock(),
-            "web": Mock()
-        }
+        registry.services = {"auth": Mock(), "web": Mock()}
 
         health = registry.health_check()
 

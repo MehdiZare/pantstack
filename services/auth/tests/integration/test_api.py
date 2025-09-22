@@ -13,13 +13,15 @@ class TestAuthAPI:
     def test_register_user_success(self, api_client, mock_dynamodb, mock_sqs):
         """Test successful user registration."""
         # Arrange
-        mock_dynamodb.put_item.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        mock_dynamodb.put_item.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200}
+        }
         mock_sqs.send_message.return_value = {"MessageId": "msg-123"}
 
         request_data = {
             "email": "newuser@example.com",
             "password": "SecurePass123!",
-            "name": "New User"
+            "name": "New User",
         }
 
         # Act
@@ -42,7 +44,7 @@ class TestAuthAPI:
         request_data = {
             "email": "existing@example.com",
             "password": "SecurePass123!",
-            "name": "User"
+            "name": "User",
         }
 
         # Act
@@ -57,18 +59,17 @@ class TestAuthAPI:
         # Arrange
         with patch("bcrypt.checkpw", return_value=True):
             mock_dynamodb.query.return_value = {
-                "Items": [{
-                    "userId": "user-123",
-                    "email": "test@example.com",
-                    "password_hash": "hashed",
-                    "is_active": True
-                }]
+                "Items": [
+                    {
+                        "userId": "user-123",
+                        "email": "test@example.com",
+                        "password_hash": "hashed",
+                        "is_active": True,
+                    }
+                ]
             }
 
-            request_data = {
-                "email": "test@example.com",
-                "password": "password123"
-            }
+            request_data = {"email": "test@example.com", "password": "password123"}
 
             # Act
             response = api_client.post("/auth/login", json=request_data)
@@ -85,10 +86,7 @@ class TestAuthAPI:
         # Arrange
         mock_dynamodb.query.return_value = {"Items": []}
 
-        request_data = {
-            "email": "test@example.com",
-            "password": "wrongpassword"
-        }
+        request_data = {"email": "test@example.com", "password": "wrongpassword"}
 
         # Act
         response = api_client.post("/auth/login", json=request_data)
@@ -128,12 +126,15 @@ class TestAuthAPI:
     def test_get_profile_authenticated(self, api_client, auth_headers, mock_dynamodb):
         """Test getting user profile when authenticated."""
         # Arrange
-        with patch("services.auth.src.api.dependencies.verify_token", return_value={"sub": "user-123"}):
+        with patch(
+            "services.auth.src.api.dependencies.verify_token",
+            return_value={"sub": "user-123"},
+        ):
             mock_dynamodb.get_item.return_value = {
                 "Item": {
                     "userId": "user-123",
                     "email": "test@example.com",
-                    "name": "Test User"
+                    "name": "Test User",
                 }
             }
 
@@ -156,18 +157,20 @@ class TestAuthAPI:
     def test_update_profile(self, api_client, auth_headers, mock_dynamodb):
         """Test updating user profile."""
         # Arrange
-        with patch("services.auth.src.api.dependencies.verify_token", return_value={"sub": "user-123"}):
+        with patch(
+            "services.auth.src.api.dependencies.verify_token",
+            return_value={"sub": "user-123"},
+        ):
             mock_dynamodb.update_item.return_value = {
-                "Attributes": {
-                    "userId": "user-123",
-                    "name": "Updated Name"
-                }
+                "Attributes": {"userId": "user-123", "name": "Updated Name"}
             }
 
             request_data = {"name": "Updated Name"}
 
             # Act
-            response = api_client.patch("/auth/profile", json=request_data, headers=auth_headers)
+            response = api_client.patch(
+                "/auth/profile", json=request_data, headers=auth_headers
+            )
 
         # Assert
         assert response.status_code == 200
@@ -177,7 +180,10 @@ class TestAuthAPI:
     def test_logout(self, api_client, auth_headers):
         """Test logout endpoint."""
         # Arrange
-        with patch("services.auth.src.api.dependencies.verify_token", return_value={"sub": "user-123"}):
+        with patch(
+            "services.auth.src.api.dependencies.verify_token",
+            return_value={"sub": "user-123"},
+        ):
             # Act
             response = api_client.post("/auth/logout", headers=auth_headers)
 

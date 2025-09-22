@@ -37,6 +37,7 @@ class TestContainer:
 
     def test_singleton_provider_behavior(self):
         """Test singleton provider behavior."""
+
         # Mock singleton behavior
         class MockSingleton:
             _instance = None
@@ -55,6 +56,7 @@ class TestContainer:
 
     def test_transient_provider_behavior(self):
         """Test transient provider behavior."""
+
         # Mock transient behavior
         class MockTransient:
             @classmethod
@@ -141,6 +143,7 @@ class TestContainer:
 
     def test_resource_lifecycle_management(self):
         """Test resource lifecycle management."""
+
         # Mock resource lifecycle
         class MockResource:
             def __init__(self):
@@ -216,6 +219,7 @@ class TestContainer:
 
     def test_lazy_initialization(self):
         """Test lazy initialization of providers."""
+
         # Mock lazy initialization
         class LazyProvider:
             def __init__(self):
@@ -277,6 +281,7 @@ class TestContainer:
 
     def test_scoped_provider(self):
         """Test scoped provider functionality."""
+
         # Mock scoped provider
         class ScopedProvider:
             def __init__(self):

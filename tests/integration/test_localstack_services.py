@@ -3,7 +3,7 @@
 import json
 import os
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 
 import boto3
 import pytest
@@ -211,17 +211,17 @@ class TestLocalStackServices:
         function_name = "test-integration-function"
 
         # Simple Lambda function code
-        lambda_code = '''
+        lambda_code = """
 def lambda_handler(event, context):
     return {
         "statusCode": 200,
         "body": f"Hello from {event.get('name', 'Lambda')}!"
     }
-'''
+"""
 
         # Create zip file content
-        import zipfile
         import io
+        import zipfile
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
@@ -250,7 +250,9 @@ def lambda_handler(event, context):
             for attempt in range(max_retries):
                 try:
                     # Check function state
-                    get_response = lambda_client.get_function(FunctionName=function_name)
+                    get_response = lambda_client.get_function(
+                        FunctionName=function_name
+                    )
                     if get_response["Configuration"]["State"] == "Active":
                         break
                 except ClientError:
@@ -277,8 +279,13 @@ def lambda_handler(event, context):
         except (ClientError, Exception) as e:
             # Lambda might not be fully supported in LocalStack free version
             error_msg = str(e).lower()
-            if any(msg in error_msg for msg in ["not implemented", "internal error", "serviceexception"]):
-                pytest.skip(f"Lambda not fully supported in LocalStack free version: {e}")
+            if any(
+                msg in error_msg
+                for msg in ["not implemented", "internal error", "serviceexception"]
+            ):
+                pytest.skip(
+                    f"Lambda not fully supported in LocalStack free version: {e}"
+                )
             else:
                 raise
 
@@ -289,7 +296,9 @@ def lambda_handler(event, context):
             except ClientError:
                 pass  # Function might not exist
 
-    def test_service_discovery_and_endpoints(self, localstack_endpoint, wait_for_localstack):
+    def test_service_discovery_and_endpoints(
+        self, localstack_endpoint, wait_for_localstack
+    ):
         """Test service discovery and endpoint resolution."""
         # Test that services are accessible on expected endpoints
         services_to_test = {
@@ -359,8 +368,7 @@ def lambda_handler(event, context):
 
             # Verify file exists in S3 based on notification
             response = s3_client.get_object(
-                Bucket=message_data["bucket"],
-                Key=message_data["key"]
+                Bucket=message_data["bucket"], Key=message_data["key"]
             )
 
             retrieved_content = response["Body"].read().decode()

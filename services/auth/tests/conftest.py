@@ -8,19 +8,16 @@ import pytest
 from dependency_injector import containers, providers
 from fastapi.testclient import TestClient
 
+
 # Mock container for testing
 class TestContainer(containers.DeclarativeContainer):
     """Test container with mocked dependencies."""
 
     # Mock Supabase client
-    supabase_client = providers.Singleton(
-        lambda: MagicMock()
-    )
+    supabase_client = providers.Singleton(lambda: MagicMock())
 
     # Mock Redis client
-    redis_client = providers.Singleton(
-        lambda: MagicMock()
-    )
+    redis_client = providers.Singleton(lambda: MagicMock())
 
     # Mock config
     config = providers.Singleton(
@@ -40,7 +37,9 @@ class TestContainer(containers.DeclarativeContainer):
 def test_container() -> TestContainer:
     """Provide test container with mocked dependencies."""
     container = TestContainer()
-    container.wire(modules=["services.auth.lib.services", "services.auth.lib.repositories"])
+    container.wire(
+        modules=["services.auth.lib.services", "services.auth.lib.repositories"]
+    )
     return container
 
 
@@ -75,8 +74,9 @@ def mock_eventbridge():
 def api_client() -> Generator[TestClient, None, None]:
     """Create test client for FastAPI application."""
     # Import here to avoid circular imports
-    from services.auth.src.api.routes import router
     from fastapi import FastAPI
+
+    from services.auth.src.api.routes import router
 
     app = FastAPI()
     app.include_router(router)
@@ -88,9 +88,7 @@ def api_client() -> Generator[TestClient, None, None]:
 @pytest.fixture
 def auth_headers():
     """Provide authorization headers for testing."""
-    return {
-        "Authorization": "Bearer test-token-123"
-    }
+    return {"Authorization": "Bearer test-token-123"}
 
 
 @pytest.fixture
@@ -101,7 +99,7 @@ def sample_user():
         "email": "test@example.com",
         "name": "Test User",
         "role": "user",
-        "is_active": True
+        "is_active": True,
     }
 
 
@@ -112,7 +110,7 @@ def sample_jwt_payload():
         "sub": "user-123",
         "email": "test@example.com",
         "role": "user",
-        "exp": 9999999999  # Far future
+        "exp": 9999999999,  # Far future
     }
 
 

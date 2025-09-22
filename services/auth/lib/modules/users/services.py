@@ -2,8 +2,6 @@
 
 from typing import List, Optional
 
-from stack.libs.shared.core.config import BaseConfig
-
 from services.auth.lib.core.events import EventBackbone, EventType
 from services.auth.lib.modules.users.repositories import UserRepository
 from services.auth.lib.modules.users.schemas import (
@@ -12,6 +10,7 @@ from services.auth.lib.modules.users.schemas import (
     UserProfile,
     UserUpdate,
 )
+from stack.libs.shared.core.config import BaseConfig
 
 
 class UserService:

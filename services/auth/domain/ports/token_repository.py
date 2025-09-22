@@ -1,7 +1,8 @@
 """Token repository interface"""
+
 from abc import ABC, abstractmethod
-from typing import Optional, List
 from datetime import datetime
+from typing import List, Optional
 
 from ..models import Token, TokenType
 
@@ -16,7 +17,7 @@ class TokenRepository(ABC):
         token_type: TokenType,
         token: str,
         expires_at: Optional[datetime] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
     ) -> Token:
         """Create a new token"""
         pass
@@ -33,9 +34,7 @@ class TokenRepository(ABC):
 
     @abstractmethod
     async def find_by_user(
-        self,
-        user_id: str,
-        token_type: Optional[TokenType] = None
+        self, user_id: str, token_type: Optional[TokenType] = None
     ) -> List[Token]:
         """Find tokens by user ID and optionally type"""
         pass

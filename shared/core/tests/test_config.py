@@ -1,19 +1,20 @@
 """Tests for shared configuration classes."""
 
 import os
-import pytest
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 import yaml
 
 from shared.core.config import (
+    AWSConfig,
     BaseConfig,
+    CeleryConfig,
     ConfigMixin,
     DatabaseConfig,
     RedisConfig,
-    CeleryConfig,
-    AWSConfig
 )
 
 
@@ -22,10 +23,12 @@ class TestConfigMixin:
 
     class TestConfig(BaseConfig):
         """Test configuration class."""
+
         test_field: str = "test_value"
 
     class TestClass(ConfigMixin[TestConfig]):
         """Test class with config mixin."""
+
         _config_class = TestConfig
 
     def test_config_lazy_loading(self):
@@ -57,6 +60,7 @@ class TestConfigMixin:
 
     def test_missing_config_class_attribute(self):
         """Test error when _config_class is not defined."""
+
         class BadClass(ConfigMixin):
             pass
 
@@ -98,13 +102,16 @@ class TestBaseConfig:
 
     def test_from_yaml(self):
         """Test loading configuration from YAML."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-            yaml.dump({
-                "app_name": "test_app",
-                "environment": "testing",
-                "debug": True,
-                "log_level": "DEBUG"
-            }, f)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump(
+                {
+                    "app_name": "test_app",
+                    "environment": "testing",
+                    "debug": True,
+                    "log_level": "DEBUG",
+                },
+                f,
+            )
             temp_path = f.name
 
         try:
@@ -140,8 +147,7 @@ class TestBaseConfig:
     def test_mask_secrets(self):
         """Test masking sensitive data."""
         config = BaseConfig(
-            secret_key="supersecretkey123",
-            internal_api_key="apikey456"
+            secret_key="supersecretkey123", internal_api_key="apikey456"
         )
 
         masked = config.mask_secrets()
@@ -169,15 +175,13 @@ class TestDatabaseConfig:
         assert config.is_configured is False
 
         config = DatabaseConfig(
-            supabase_url="https://test.supabase.co",
-            supabase_anon_key="test_key"
+            supabase_url="https://test.supabase.co", supabase_anon_key="test_key"
         )
         assert config.is_configured is True
 
-    @patch.dict(os.environ, {
-        "DB_SUPABASE_URL": "https://env.supabase.co",
-        "DB_POOL_SIZE": "20"
-    })
+    @patch.dict(
+        os.environ, {"DB_SUPABASE_URL": "https://env.supabase.co", "DB_POOL_SIZE": "20"}
+    )
     def test_env_prefix(self):
         """Test environment variable prefix."""
         config = DatabaseConfig()
@@ -206,11 +210,14 @@ class TestRedisConfig:
         config = RedisConfig(password="secret", ssl=True)
         assert config.url == "rediss://:secret@localhost:6379/0"
 
-    @patch.dict(os.environ, {
-        "REDIS_HOST": "redis.example.com",
-        "REDIS_PORT": "6380",
-        "REDIS_PASSWORD": "secret123"
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "REDIS_HOST": "redis.example.com",
+            "REDIS_PORT": "6380",
+            "REDIS_PASSWORD": "secret123",
+        },
+    )
     def test_env_loading(self):
         """Test loading from environment variables."""
         config = RedisConfig()
@@ -240,7 +247,7 @@ class TestCeleryConfig:
 
         config = CeleryConfig(
             task_routes={"app.tasks.*": "high_priority"},
-            task_default_queue="low_priority"
+            task_default_queue="low_priority",
         )
         assert "app.tasks.*" in config.task_routes
         assert config.task_default_queue == "low_priority"
@@ -265,11 +272,14 @@ class TestAWSConfig:
         config = AWSConfig(localstack_enabled=True)
         assert config.endpoint_url == "http://localhost:4566"
 
-    @patch.dict(os.environ, {
-        "AWS_REGION": "eu-west-1",
-        "AWS_LOCALSTACK_ENABLED": "true",
-        "AWS_S3_BUCKET": "test-bucket"
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "AWS_REGION": "eu-west-1",
+            "AWS_LOCALSTACK_ENABLED": "true",
+            "AWS_S3_BUCKET": "test-bucket",
+        },
+    )
     def test_env_loading(self):
         """Test loading AWS config from environment."""
         config = AWSConfig()
@@ -283,11 +293,8 @@ class TestConfigIntegration:
 
     def test_yaml_and_env_merge(self):
         """Test merging YAML and environment configurations."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-            yaml.dump({
-                "app_name": "yaml_app",
-                "debug": False
-            }, f)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            yaml.dump({"app_name": "yaml_app", "debug": False}, f)
             temp_path = f.name
 
         try:
@@ -316,6 +323,7 @@ class TestConfigIntegration:
 
             # Mock the Path to use our temp directory
             with patch("shared.core.config.Path") as mock_path:
+
                 def path_side_effect(path_str):
                     if "defaults.yaml" in path_str:
                         return defaults_path

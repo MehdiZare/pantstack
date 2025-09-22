@@ -1,7 +1,8 @@
 """Token management domain service"""
-from typing import Optional, List
-from datetime import datetime, timedelta
+
 import secrets
+from datetime import datetime, timedelta
+from typing import List, Optional
 
 from ..models import Token, TokenType
 from ..ports import TokenRepository
@@ -22,10 +23,7 @@ class TokenService:
         self.token_repo = token_repo
 
     async def create_token(
-        self,
-        user_id: str,
-        token_type: TokenType,
-        metadata: Optional[dict] = None
+        self, user_id: str, token_type: TokenType, metadata: Optional[dict] = None
     ) -> Token:
         """Create a new token"""
         token_string = secrets.token_urlsafe(32)
@@ -36,7 +34,7 @@ class TokenService:
             token_type=token_type,
             token=token_string,
             expires_at=expires_at,
-            metadata=metadata
+            metadata=metadata,
         )
         return token
 
@@ -53,7 +51,9 @@ class TokenService:
         """Revoke a token"""
         return await self.token_repo.revoke(token_id)
 
-    async def revoke_user_tokens(self, user_id: str, token_type: Optional[TokenType] = None) -> int:
+    async def revoke_user_tokens(
+        self, user_id: str, token_type: Optional[TokenType] = None
+    ) -> int:
         """Revoke all tokens for a user, optionally filtered by type"""
         tokens = await self.token_repo.find_by_user(user_id, token_type)
         count = 0
@@ -67,9 +67,7 @@ class TokenService:
         return await self.token_repo.delete_expired()
 
     async def get_user_tokens(
-        self,
-        user_id: str,
-        token_type: Optional[TokenType] = None
+        self, user_id: str, token_type: Optional[TokenType] = None
     ) -> List[Token]:
         """Get all tokens for a user"""
         return await self.token_repo.find_by_user(user_id, token_type)

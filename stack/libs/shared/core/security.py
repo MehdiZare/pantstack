@@ -39,7 +39,7 @@ def create_access_token(
     data: Dict[str, Any],
     secret_key: str,
     expires_delta: Optional[timedelta] = None,
-    algorithm: str = "HS256"
+    algorithm: str = "HS256",
 ) -> str:
     """Create a JWT access token.
 
@@ -64,9 +64,7 @@ def create_access_token(
 
 
 def decode_access_token(
-    token: str,
-    secret_key: str,
-    algorithm: str = "HS256"
+    token: str, secret_key: str, algorithm: str = "HS256"
 ) -> Dict[str, Any]:
     """Decode a JWT access token.
 

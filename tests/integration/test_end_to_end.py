@@ -62,7 +62,9 @@ class TestEndToEnd:
 
         return True
 
-    def test_localstack_and_supabase_integration(self, development_stack_running, test_environment):
+    def test_localstack_and_supabase_integration(
+        self, development_stack_running, test_environment
+    ):
         """Test integration between LocalStack and Supabase."""
         # Test LocalStack health
         try:
@@ -88,7 +90,9 @@ class TestEndToEnd:
             pytest.skip("Supabase not accessible")
 
     @pytest.mark.slow
-    def test_api_service_startup_and_health(self, project_root, test_environment, development_stack_running):
+    def test_api_service_startup_and_health(
+        self, project_root, test_environment, development_stack_running
+    ):
         """Test API service startup and health check."""
         # This test would require the API service to be implemented and runnable
         api_port = 8000
@@ -108,13 +112,16 @@ class TestEndToEnd:
         # Note: Actual API testing would require the service to be running
         # This could be added once the FastAPI application is fully implemented
 
-    def test_worker_service_integration(self, test_environment, development_stack_running):
+    def test_worker_service_integration(
+        self, test_environment, development_stack_running
+    ):
         """Test worker service integration with queues."""
         # Test Redis connectivity for task queues
         redis_url = test_environment["REDIS_URL"]
 
         try:
             import redis
+
             r = redis.from_url(redis_url)
             r.ping()
 
@@ -136,7 +143,9 @@ class TestEndToEnd:
         except Exception:
             pytest.skip("Redis not accessible")
 
-    def test_database_operations_flow(self, test_environment, development_stack_running):
+    def test_database_operations_flow(
+        self, test_environment, development_stack_running
+    ):
         """Test database operations through the full stack."""
         # Test would involve:
         # 1. Creating data via API
@@ -192,7 +201,9 @@ class TestEndToEnd:
             assert retrieved_content == test_content
 
             # Test file listing
-            response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix="test-files/")
+            response = s3_client.list_objects_v2(
+                Bucket=bucket_name, Prefix="test-files/"
+            )
             assert "Contents" in response
             assert any(obj["Key"] == test_key for obj in response["Contents"])
 
@@ -241,7 +252,9 @@ class TestEndToEnd:
             )
 
             # Receive and verify event
-            response = sqs_client.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=1)
+            response = sqs_client.receive_message(
+                QueueUrl=queue_url, MaxNumberOfMessages=1
+            )
 
             assert "Messages" in response
             message = response["Messages"][0]
@@ -301,7 +314,8 @@ class TestEndToEnd:
         # Security settings for test environment
         security_config = {
             "debug_mode": test_environment.get("DEBUG") == "true",
-            "local_development": "localhost" in test_environment.get("SUPABASE_URL", ""),
+            "local_development": "localhost"
+            in test_environment.get("SUPABASE_URL", ""),
             "test_environment": test_environment.get("ENV") == "test",
         }
 
@@ -330,16 +344,20 @@ class TestEndToEnd:
             start_time = time.time()
 
             try:
-                response = requests.get(service["url"], timeout=service["max_response_time"])
+                response = requests.get(
+                    service["url"], timeout=service["max_response_time"]
+                )
                 response_time = time.time() - start_time
 
                 # Service should respond within acceptable time
-                assert response_time < service["max_response_time"], \
-                    f"{service['name']} response time {response_time:.2f}s exceeds {service['max_response_time']}s"
+                assert (
+                    response_time < service["max_response_time"]
+                ), f"{service['name']} response time {response_time:.2f}s exceeds {service['max_response_time']}s"
 
                 # Should get a valid HTTP response
-                assert 200 <= response.status_code < 500, \
-                    f"{service['name']} returned unexpected status: {response.status_code}"
+                assert (
+                    200 <= response.status_code < 500
+                ), f"{service['name']} returned unexpected status: {response.status_code}"
 
             except requests.exceptions.RequestException as e:
                 pytest.skip(f"{service['name']} not accessible: {e}")

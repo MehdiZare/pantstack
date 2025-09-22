@@ -225,7 +225,11 @@ class AuthRepository:
             expires_in: Expiration in seconds
         """
         key = f"session:{session_id}"
-        session_data = {"user_id": user_id, **data, "created_at": datetime.utcnow().isoformat()}
+        session_data = {
+            "user_id": user_id,
+            **data,
+            "created_at": datetime.utcnow().isoformat(),
+        }
         self.redis.setex(key, expires_in, json.dumps(session_data))
 
         # Track user sessions

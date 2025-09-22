@@ -37,6 +37,7 @@ class TestLogging:
 
     def test_json_formatter(self):
         """Test JSON log formatter."""
+
         # Mock JSON formatter
         class JSONFormatter(logging.Formatter):
             def format(self, record):
@@ -142,6 +143,7 @@ class TestLogging:
 
     def test_log_filtering(self):
         """Test log filtering functionality."""
+
         # Mock log filter
         class SensitiveDataFilter(logging.Filter):
             def filter(self, record):
@@ -193,7 +195,7 @@ class TestLogging:
                         "operation": operation_name,
                         "duration_ms": duration,
                         "performance": True,
-                    }
+                    },
                 )
 
         logger = logging.getLogger("performance")

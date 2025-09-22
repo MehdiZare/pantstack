@@ -58,7 +58,13 @@ class UserRepository:
         if not self.db.client:
             return None
 
-        response = self.db.table(self.table_name).select("*").eq("id", user_id).single().execute()
+        response = (
+            self.db.table(self.table_name)
+            .select("*")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
 
         if response.error or not response.data:
             return None
@@ -79,7 +85,11 @@ class UserRepository:
             return None
 
         response = (
-            self.db.table(self.table_name).select("*").eq("email", email).single().execute()
+            self.db.table(self.table_name)
+            .select("*")
+            .eq("email", email)
+            .single()
+            .execute()
         )
 
         if response.error or not response.data:
@@ -107,7 +117,9 @@ class UserRepository:
         if not self.db.client:
             return None
 
-        response = self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        response = (
+            self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        )
 
         if response.error:
             raise ValueError(f"Failed to update user: {response.error}")
@@ -207,7 +219,9 @@ class UserRepository:
         if not self.db.client:
             return True
 
-        response = self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        response = (
+            self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        )
 
         return response.error is None
 
@@ -226,7 +240,9 @@ class UserRepository:
         if not self.db.client:
             return True
 
-        response = self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        response = (
+            self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        )
 
         return response.error is None
 
@@ -248,7 +264,9 @@ class UserRepository:
         if not self.db.client:
             return True
 
-        response = self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        response = (
+            self.db.table(self.table_name).update(data).eq("id", user_id).execute()
+        )
 
         return response.error is None
 

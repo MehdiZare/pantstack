@@ -65,7 +65,9 @@ class TestDockerCompose:
         required_services = ["localstack", "redis"]
 
         for service in required_services:
-            assert service in config_output, f"Service {service} not found in docker-compose.yml"
+            assert (
+                service in config_output
+            ), f"Service {service} not found in docker-compose.yml"
 
     @pytest.mark.slow
     def test_localstack_service_startup(self, docker_compose_file, docker_available):
@@ -81,7 +83,9 @@ class TestDockerCompose:
                 timeout=120,  # 2 minutes timeout
             )
 
-            assert result.returncode == 0, f"Failed to start {service_name}: {result.stderr}"
+            assert (
+                result.returncode == 0
+            ), f"Failed to start {service_name}: {result.stderr}"
 
             # Wait for service to be healthy
             max_wait = 60  # seconds
@@ -89,10 +93,15 @@ class TestDockerCompose:
 
             for _ in range(max_wait // wait_interval):
                 try:
-                    response = requests.get("http://localhost:4566/_localstack/health", timeout=5)
+                    response = requests.get(
+                        "http://localhost:4566/_localstack/health", timeout=5
+                    )
                     if response.status_code == 200:
                         health_data = response.json()
-                        if health_data.get("services", {}).get("s3") in ["available", "running"]:
+                        if health_data.get("services", {}).get("s3") in [
+                            "available",
+                            "running",
+                        ]:
                             break
                 except requests.exceptions.RequestException:
                     pass
@@ -131,7 +140,9 @@ class TestDockerCompose:
                 timeout=60,
             )
 
-            assert result.returncode == 0, f"Failed to start {service_name}: {result.stderr}"
+            assert (
+                result.returncode == 0
+            ), f"Failed to start {service_name}: {result.stderr}"
 
             # Wait for service to be ready
             max_wait = 30  # seconds
@@ -141,7 +152,14 @@ class TestDockerCompose:
                 try:
                     # Check if Redis is accepting connections
                     result = subprocess.run(
-                        ["docker", "exec", "-i", f"$(docker-compose -f {docker_compose_file} ps -q {service_name})", "redis-cli", "ping"],
+                        [
+                            "docker",
+                            "exec",
+                            "-i",
+                            f"$(docker-compose -f {docker_compose_file} ps -q {service_name})",
+                            "redis-cli",
+                            "ping",
+                        ],
                         capture_output=True,
                         text=True,
                         shell=True,
@@ -157,6 +175,7 @@ class TestDockerCompose:
                 # Alternative check using port availability
                 try:
                     import socket
+
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(5)
                     result = sock.connect_ex(("localhost", 6379))
@@ -164,7 +183,9 @@ class TestDockerCompose:
                     if result == 0:
                         pass  # Connection successful
                     else:
-                        pytest.fail("Redis service did not become available within timeout")
+                        pytest.fail(
+                            "Redis service did not become available within timeout"
+                        )
                 except Exception:
                     pytest.fail("Could not verify Redis service availability")
 
@@ -196,7 +217,9 @@ class TestDockerCompose:
         has_env_config = any(pattern in compose_content for pattern in env_patterns)
 
         # Either explicit env vars or env_file should be configured
-        assert has_env_config, "No environment configuration found in docker-compose.yml"
+        assert (
+            has_env_config
+        ), "No environment configuration found in docker-compose.yml"
 
     def test_volume_mounts_configuration(self, docker_compose_file):
         """Test volume mounts configuration."""
@@ -258,7 +281,9 @@ class TestDockerCompose:
         expected_ports = ["4566", "6379"]  # LocalStack and Redis
 
         for port in expected_ports:
-            assert port in config_output, f"Port {port} not found in docker-compose configuration"
+            assert (
+                port in config_output
+            ), f"Port {port} not found in docker-compose configuration"
 
     def test_service_dependencies(self, docker_compose_file):
         """Test service dependencies configuration."""
@@ -323,7 +348,9 @@ class TestDockerCompose:
             for line in lines:
                 if any(service in line.lower() for service in ["localstack", "redis"]):
                     # Service line should indicate it's running
-                    assert "up" in line.lower() or "running" in line.lower(), f"Service not running: {line}"
+                    assert (
+                        "up" in line.lower() or "running" in line.lower()
+                    ), f"Service not running: {line}"
 
         finally:
             # Clean up

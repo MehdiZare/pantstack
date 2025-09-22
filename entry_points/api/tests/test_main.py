@@ -1,8 +1,9 @@
 """Tests for API entry point main module."""
 
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
 
 from entry_points.api.main import create_app
 
@@ -52,7 +53,7 @@ class TestAPIMain:
         mock_registry = Mock()
         mock_registry.discover_services.return_value = [
             {"name": "auth", "version": "1.0.0"},
-            {"name": "web", "version": "1.0.0"}
+            {"name": "web", "version": "1.0.0"},
         ]
         mock_registry_class.return_value = mock_registry
 

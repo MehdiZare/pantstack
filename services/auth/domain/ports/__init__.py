@@ -1,6 +1,6 @@
 """Domain ports (interfaces) for external dependencies"""
 
-from .user_repository import UserRepository
 from .token_repository import TokenRepository
+from .user_repository import UserRepository
 
 __all__ = ["UserRepository", "TokenRepository"]

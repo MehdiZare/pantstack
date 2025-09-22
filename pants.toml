@@ -46,4 +46,3 @@ args = ["--ignore-missing-imports"]
 
 [python-infer]
 use_rust_parser = true
-

@@ -57,7 +57,9 @@ class EnvironmentDetector:
     def _is_localstack_running() -> bool:
         """Check if LocalStack is running on localhost."""
         try:
-            response = requests.get("http://localhost:4566/_localstack/health", timeout=1)
+            response = requests.get(
+                "http://localhost:4566/_localstack/health", timeout=1
+            )
             return response.status_code == 200
         except:
             return False
@@ -100,7 +102,9 @@ class EnvironmentManager:
     _endpoints_cache: Dict[Environment, ServiceEndpoints] = {}
 
     @classmethod
-    def get_endpoints(cls, environment: Optional[Environment] = None) -> ServiceEndpoints:
+    def get_endpoints(
+        cls, environment: Optional[Environment] = None
+    ) -> ServiceEndpoints:
         """Get service endpoints for environment.
 
         Args:
@@ -191,6 +195,7 @@ class EnvironmentManager:
         """Check if Redis is available."""
         try:
             import redis
+
             client = redis.Redis(host=host, port=port, socket_connect_timeout=1)
             client.ping()
             return True
@@ -202,13 +207,14 @@ class EnvironmentManager:
         """Check if Postgres is available."""
         try:
             import psycopg2
+
             conn = psycopg2.connect(
                 host=host,
                 port=port,
                 database="postgres",
                 user="postgres",
                 password="postgres",
-                connect_timeout=1
+                connect_timeout=1,
             )
             conn.close()
             return True

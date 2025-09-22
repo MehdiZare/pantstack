@@ -1,12 +1,13 @@
 """
 Agent Service - Main API Application
 """
+
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, status
+from fastapi import BackgroundTasks, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 from structlog import get_logger
 
@@ -16,6 +17,7 @@ logger = get_logger(__name__)
 # Models
 class TaskStatus(str, Enum):
     """Task execution status"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -25,6 +27,7 @@ class TaskStatus(str, Enum):
 
 class TaskPriority(str, Enum):
     """Task priority levels"""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -33,16 +36,22 @@ class TaskPriority(str, Enum):
 
 class TaskRequest(BaseModel):
     """Request model for creating a task"""
+
     name: str = Field(..., description="Task name")
     task_type: str = Field(..., description="Type of task to execute")
     payload: Dict[str, Any] = Field(default_factory=dict, description="Task payload")
-    priority: TaskPriority = Field(default=TaskPriority.NORMAL, description="Task priority")
-    schedule_at: Optional[datetime] = Field(None, description="Schedule task for future execution")
+    priority: TaskPriority = Field(
+        default=TaskPriority.NORMAL, description="Task priority"
+    )
+    schedule_at: Optional[datetime] = Field(
+        None, description="Schedule task for future execution"
+    )
     retry_count: int = Field(default=3, description="Number of retries on failure")
 
 
 class TaskResponse(BaseModel):
     """Response model for task information"""
+
     id: str
     name: str
     task_type: str
@@ -59,6 +68,7 @@ class TaskResponse(BaseModel):
 
 class AgentInfo(BaseModel):
     """Agent information model"""
+
     id: str
     name: str
     status: str
@@ -114,14 +124,13 @@ async def health_check():
             "database": "connected",
             "worker_pool": "healthy",
             "message_queue": "connected",
-        }
+        },
     }
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
-    task: TaskRequest,
-    background_tasks: BackgroundTasks
+    task: TaskRequest, background_tasks: BackgroundTasks
 ) -> TaskResponse:
     """Create a new task for execution"""
     global task_counter
@@ -145,7 +154,7 @@ async def create_task(
         "Task created",
         task_id=task_id,
         task_type=task.task_type,
-        priority=task.priority.value
+        priority=task.priority.value,
     )
 
     # Simulate task execution in background
@@ -159,8 +168,7 @@ async def get_task(task_id: str) -> TaskResponse:
     """Get task information by ID"""
     if task_id not in tasks:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
         )
 
     return tasks[task_id]
@@ -171,7 +179,7 @@ async def list_tasks(
     status: Optional[TaskStatus] = None,
     priority: Optional[TaskPriority] = None,
     limit: int = 100,
-    offset: int = 0
+    offset: int = 0,
 ) -> List[TaskResponse]:
     """List tasks with optional filtering"""
     filtered_tasks = list(tasks.values())
@@ -182,7 +190,7 @@ async def list_tasks(
     if priority:
         filtered_tasks = [t for t in filtered_tasks if t.priority == priority]
 
-    return filtered_tasks[offset:offset + limit]
+    return filtered_tasks[offset : offset + limit]
 
 
 @app.put("/tasks/{task_id}/cancel", response_model=TaskResponse)
@@ -190,8 +198,7 @@ async def cancel_task(task_id: str) -> TaskResponse:
     """Cancel a pending or running task"""
     if task_id not in tasks:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
         )
 
     task = tasks[task_id]
@@ -199,7 +206,7 @@ async def cancel_task(task_id: str) -> TaskResponse:
     if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot cancel task in {task.status} status"
+            detail=f"Cannot cancel task in {task.status} status",
         )
 
     task.status = TaskStatus.CANCELLED
@@ -213,8 +220,7 @@ async def delete_task(task_id: str):
     """Delete a completed or cancelled task"""
     if task_id not in tasks:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task {task_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
         )
 
     task = tasks[task_id]
@@ -222,7 +228,7 @@ async def delete_task(task_id: str):
     if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot delete task in {task.status} status"
+            detail=f"Cannot delete task in {task.status} status",
         )
 
     del tasks[task_id]
@@ -265,8 +271,7 @@ async def get_agent(agent_id: str) -> AgentInfo:
     # Mock implementation
     if agent_id not in ["agent_001", "agent_002"]:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent {agent_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent {agent_id} not found"
         )
 
     return AgentInfo(
@@ -304,6 +309,7 @@ async def execute_task(task_id: str, payload: Dict[str, Any]):
 
         # Mock success/failure (90% success rate)
         import random
+
         if random.random() < 0.9:
             task.status = TaskStatus.COMPLETED
             task.completed_at = datetime.utcnow()
@@ -316,6 +322,7 @@ async def execute_task(task_id: str, payload: Dict[str, Any]):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

@@ -194,7 +194,10 @@ class BaseConfig(BaseSettings):
             return value
 
         def mask_dict(d: dict) -> dict:
-            return {k: mask_value(k, v) if not isinstance(v, dict) else mask_dict(v) for k, v in d.items()}
+            return {
+                k: mask_value(k, v) if not isinstance(v, dict) else mask_dict(v)
+                for k, v in d.items()
+            }
 
         return mask_dict(data)
 
@@ -234,7 +237,9 @@ class RedisConfig(BaseSettings):
     password: Optional[str] = Field(default=None, description="Redis password")
     ssl: bool = Field(default=False, description="Use SSL connection")
     socket_timeout: int = Field(default=5, description="Socket timeout in seconds")
-    connection_pool_max_connections: int = Field(default=50, description="Max connections in pool")
+    connection_pool_max_connections: int = Field(
+        default=50, description="Max connections in pool"
+    )
 
     model_config = SettingsConfigDict(env_prefix="REDIS_")
 
@@ -249,21 +254,33 @@ class RedisConfig(BaseSettings):
 class CeleryConfig(BaseSettings):
     """Celery configuration."""
 
-    broker_url: str = Field(default="redis://localhost:6379/0", description="Broker URL")
-    result_backend: str = Field(default="redis://localhost:6379/0", description="Result backend")
+    broker_url: str = Field(
+        default="redis://localhost:6379/0", description="Broker URL"
+    )
+    result_backend: str = Field(
+        default="redis://localhost:6379/0", description="Result backend"
+    )
     task_serializer: str = Field(default="json", description="Task serializer")
     result_serializer: str = Field(default="json", description="Result serializer")
-    accept_content: List[str] = Field(default=["json"], description="Accepted content types")
+    accept_content: List[str] = Field(
+        default=["json"], description="Accepted content types"
+    )
     timezone: str = Field(default="UTC", description="Timezone")
     enable_utc: bool = Field(default=True, description="Enable UTC")
     task_track_started: bool = Field(default=True, description="Track started tasks")
     task_time_limit: int = Field(default=300, description="Task time limit in seconds")
     task_soft_time_limit: int = Field(default=240, description="Task soft time limit")
-    worker_prefetch_multiplier: int = Field(default=4, description="Worker prefetch multiplier")
-    worker_max_tasks_per_child: int = Field(default=1000, description="Max tasks per child")
+    worker_prefetch_multiplier: int = Field(
+        default=4, description="Worker prefetch multiplier"
+    )
+    worker_max_tasks_per_child: int = Field(
+        default=1000, description="Max tasks per child"
+    )
 
     # Task routing
-    task_routes: Dict[str, str] = Field(default_factory=dict, description="Task routing rules")
+    task_routes: Dict[str, str] = Field(
+        default_factory=dict, description="Task routing rules"
+    )
     task_default_queue: str = Field(default="default", description="Default queue name")
 
     model_config = SettingsConfigDict(env_prefix="CELERY_")
@@ -284,14 +301,20 @@ class AWSConfig(BaseSettings):
     sqs_dlq_url: Optional[str] = Field(default=None, description="SQS DLQ URL")
 
     # EventBridge
-    eventbridge_bus: Optional[str] = Field(default=None, description="EventBridge bus name")
+    eventbridge_bus: Optional[str] = Field(
+        default=None, description="EventBridge bus name"
+    )
 
     # Lambda
-    lambda_role_arn: Optional[str] = Field(default=None, description="Lambda execution role ARN")
+    lambda_role_arn: Optional[str] = Field(
+        default=None, description="Lambda execution role ARN"
+    )
 
     # LocalStack support
     localstack_enabled: bool = Field(default=False, description="Use LocalStack")
-    localstack_endpoint: str = Field(default="http://localhost:4566", description="LocalStack endpoint")
+    localstack_endpoint: str = Field(
+        default="http://localhost:4566", description="LocalStack endpoint"
+    )
 
     model_config = SettingsConfigDict(env_prefix="AWS_")
 

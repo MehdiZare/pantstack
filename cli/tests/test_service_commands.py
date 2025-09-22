@@ -54,7 +54,7 @@ class TestServiceCommands:
         """Test BUILD file generation for new service."""
         service_name = "orders"
 
-        expected_build_content = f'''python_sources(
+        expected_build_content = f"""python_sources(
     name="{service_name}_lib",
     sources=["src/**/*.py"],
     resolve="{service_name}_core",
@@ -68,7 +68,7 @@ python_sources(
         ":{service_name}_lib",
         "//shared/lib:shared",
     ],
-)'''
+)"""
 
         # Verify BUILD file content structure
         assert service_name in expected_build_content
@@ -101,6 +101,7 @@ python_sources(
         invalid_names = ["", "123service", "service!", "service with spaces"]
 
         import re
+
         pattern = r"^[a-zA-Z][a-zA-Z0-9_-]*$"
 
         for name in valid_names:
