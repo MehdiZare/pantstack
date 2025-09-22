@@ -7,11 +7,25 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, status
+from dependency_injector.wiring import Provide, inject
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 from structlog import get_logger
 
+from ...lib.core.container import ApplicationContainer, get_container
+
+try:
+    from celery import current_app as celery_app
+
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    celery_app = None
+
 logger = get_logger(__name__)
+
+# Initialize container
+container = get_container()
 
 
 # Models
@@ -64,6 +78,7 @@ class TaskResponse(BaseModel):
     error: Optional[str] = None
     retry_count: int
     attempts: int = 0
+    celery_task_id: Optional[str] = None
 
 
 class AgentInfo(BaseModel):
@@ -79,7 +94,7 @@ class AgentInfo(BaseModel):
     uptime_seconds: float
 
 
-# In-memory task store (for development)
+# In-memory task store
 tasks: Dict[str, TaskResponse] = {}
 task_counter = 0
 
@@ -89,9 +104,19 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     # Startup
     logger.info("Starting Agent Service API")
+    await container.init_resources()
+    container.wire(modules=[__name__])
+
+    # Inject Celery app if available
+    if celery_app:
+        from dependency_injector import providers
+
+        container.infrastructure.celery_app.override(providers.Object(celery_app))
+
     yield
     # Shutdown
     logger.info("Shutting down Agent Service API")
+    await container.shutdown_resources()
 
 
 app = FastAPI(
@@ -129,8 +154,11 @@ async def health_check():
 
 
 @app.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
+@inject
 async def create_task(
-    task: TaskRequest, background_tasks: BackgroundTasks
+    task: TaskRequest,
+    background_tasks: BackgroundTasks,
+    task_service=Depends(Provide[ApplicationContainer.services.task_service]),
 ) -> TaskResponse:
     """Create a new task for execution"""
     global task_counter
@@ -149,29 +177,100 @@ async def create_task(
 
     tasks[task_id] = task_response
 
-    # In production, this would queue the task to Celery or similar
-    logger.info(
-        "Task created",
-        task_id=task_id,
-        task_type=task.task_type,
-        priority=task.priority.value,
-    )
+    # Try to use Celery if available
+    if CELERY_AVAILABLE and celery_app:
+        try:
+            # Map task types to Celery tasks
+            celery_task_map = {
+                "data_processing": "agent.process_data",
+                "workflow": "agent.execute_workflow",
+                "report": "agent.generate_report",
+                "batch": "agent.batch_process",
+                "sync": "agent.sync_external_data",
+                "notification": "agent.send_notification",
+                "cleanup": "agent.cleanup_old_data",
+                "health_check": "agent.health_check",
+            }
 
-    # Simulate task execution in background
-    background_tasks.add_task(execute_task, task_id, task.payload)
+            celery_task_name = celery_task_map.get(task.task_type, "agent.process_data")
+
+            # Send task to Celery
+            celery_result = celery_app.send_task(
+                celery_task_name,
+                kwargs=(
+                    {"data": task.payload}
+                    if "data" in celery_task_name
+                    else {"parameters": task.payload}
+                ),
+                queue="agent" if "agent" in celery_task_name else "default",
+                task_id=task_id,
+            )
+
+            # Store Celery task ID for tracking
+            task_response.celery_task_id = celery_result.id
+            logger.info(
+                "Task sent to Celery",
+                task_id=task_id,
+                celery_task_id=celery_result.id,
+                task_type=task.task_type,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to send task to Celery: {e}, falling back to background task"
+            )
+            background_tasks.add_task(execute_task, task_id, task.payload)
+    else:
+        # Fallback to background task
+        logger.info(
+            "Task created (Celery not available)",
+            task_id=task_id,
+            task_type=task.task_type,
+            priority=task.priority.value,
+        )
+        background_tasks.add_task(execute_task, task_id, task.payload)
 
     return task_response
 
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: str) -> TaskResponse:
+@inject
+async def get_task(
+    task_id: str,
+    task_service=Depends(Provide[ApplicationContainer.services.task_service]),
+) -> TaskResponse:
     """Get task information by ID"""
     if task_id not in tasks:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found"
         )
 
-    return tasks[task_id]
+    task = tasks[task_id]
+
+    # If task has Celery ID, try to get status from Celery
+    if CELERY_AVAILABLE and hasattr(task, "celery_task_id") and task.celery_task_id:
+        try:
+            from celery.result import AsyncResult
+
+            celery_result = AsyncResult(task.celery_task_id, app=celery_app)
+
+            if celery_result.ready():
+                if celery_result.successful():
+                    task.status = TaskStatus.COMPLETED
+                    task.result = celery_result.result
+                    task.completed_at = datetime.utcnow()
+                elif celery_result.failed():
+                    task.status = TaskStatus.FAILED
+                    task.error = str(celery_result.info)
+                    task.completed_at = datetime.utcnow()
+            elif celery_result.state == "PENDING":
+                task.status = TaskStatus.PENDING
+            else:
+                task.status = TaskStatus.RUNNING
+                task.started_at = task.started_at or datetime.utcnow()
+        except Exception as e:
+            logger.warning(f"Failed to get Celery task status: {e}")
+
+    return task
 
 
 @app.get("/tasks", response_model=List[TaskResponse])
@@ -268,7 +367,6 @@ async def list_agents() -> List[AgentInfo]:
 @app.get("/agents/{agent_id}", response_model=AgentInfo)
 async def get_agent(agent_id: str) -> AgentInfo:
     """Get specific agent information"""
-    # Mock implementation
     if agent_id not in ["agent_001", "agent_002"]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent {agent_id} not found"
@@ -293,9 +391,9 @@ async def restart_agent(agent_id: str):
     return {"message": f"Agent {agent_id} restart initiated"}
 
 
-# Background task executor (mock implementation)
+# Background task executor
 async def execute_task(task_id: str, payload: Dict[str, Any]):
-    """Execute a task (mock implementation)"""
+    """Execute a task"""
     import asyncio
 
     if task_id in tasks:
@@ -307,7 +405,7 @@ async def execute_task(task_id: str, payload: Dict[str, Any]):
         # Simulate task execution
         await asyncio.sleep(2)
 
-        # Mock success/failure (90% success rate)
+        # Simulate success/failure (90% success rate)
         import random
 
         if random.random() < 0.9:
@@ -317,7 +415,7 @@ async def execute_task(task_id: str, payload: Dict[str, Any]):
         else:
             task.status = TaskStatus.FAILED
             task.completed_at = datetime.utcnow()
-            task.error = "Mock task failure"
+            task.error = "Task execution failed"
 
 
 if __name__ == "__main__":

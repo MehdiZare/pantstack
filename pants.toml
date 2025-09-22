@@ -28,6 +28,12 @@ web_core   = "lockfiles/web_core.lock"
 web_api    = "lockfiles/web_api.lock"
 agent_core = "lockfiles/agent_core.lock"
 
+sample_test_core = "lockfiles/sample_test_core.lock"
+sample_test_api = "lockfiles/sample_test_api.lock"
+
+test_cleanup_core = "lockfiles/test_cleanup_core.lock"
+test_cleanup_api = "lockfiles/test_cleanup_api.lock"
+
 # Entry point resolves
 api_main = "lockfiles/api_main.lock"
 celery_main = "lockfiles/celery_main.lock"

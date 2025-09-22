@@ -32,7 +32,13 @@ class AutoDiscovery:
         for service_dir in services_path.iterdir():
             if service_dir.is_dir() and not service_dir.name.startswith("_"):
                 # Check if it looks like a service (has expected structure)
-                if (service_dir / "src").exists() or (service_dir / "lib").exists():
+                if (
+                    (service_dir / "src").exists()
+                    or (service_dir / "lib").exists()
+                    or (service_dir / "app").exists()
+                    or (service_dir / "domain").exists()
+                    or (service_dir / "public").exists()
+                ):
                     services.append(service_dir.name)
                     print(f"🔍 Discovered service: {service_dir.name}")
 

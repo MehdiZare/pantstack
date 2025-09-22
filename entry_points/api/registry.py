@@ -48,7 +48,23 @@ class APIRegistry(ServiceRegistry):
         """
         services = AutoDiscovery.discover_services()
 
+        # Try to import manifests directly from public directories
         for service_name in services:
+            try:
+                # Try to import SERVICE_MANIFEST from service public module
+                module = __import__(
+                    f"services.{service_name}.public", fromlist=["SERVICE_MANIFEST"]
+                )
+                if hasattr(module, "SERVICE_MANIFEST"):
+                    manifest = module.SERVICE_MANIFEST
+                    self.register(manifest)
+                    self._register_routes(manifest)
+                    print(f"✅ Loaded manifest from {service_name}/public")
+                    continue
+            except ImportError as e:
+                print(f"⚠️ Could not import {service_name}/public: {e}")
+
+            # Fallback to old method
             manifest = AutoDiscovery.load_service_manifest(service_name, "api")
             if manifest:
                 self.register(manifest)

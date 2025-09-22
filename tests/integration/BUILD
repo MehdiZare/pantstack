@@ -76,3 +76,18 @@ python_tests(
         "//3rdparty/python:test_reqs#pytest",
     ],
 )
+
+python_tests(
+    name="test_full_stack_e2e",
+    sources=["test_full_stack_e2e.py"],
+    tags=["integration", "e2e", "full-stack", "slow"],
+    timeout=900,
+    resolve="test",
+    run_goal_use_sandbox=False,
+    dependencies=[
+        "//3rdparty/python:test_reqs#pytest",
+        "//3rdparty/python:test_reqs#boto3",
+        "//3rdparty/python:test_reqs#requests",
+        "//3rdparty/python:test_reqs#redis",
+    ],
+)

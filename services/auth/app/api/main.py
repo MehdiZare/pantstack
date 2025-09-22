@@ -4,20 +4,12 @@ from contextlib import asynccontextmanager
 from typing import Dict
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, status
+from dependency_injector.wiring import Provide, inject
+from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
-from ...adapters.repositories import InMemoryTokenRepository, InMemoryUserRepository
 from ...domain.services import AuthenticationService, TokenService, UserService
-
-# Initialize repositories (in production, these would be injected)
-user_repo = InMemoryUserRepository()
-token_repo = InMemoryTokenRepository()
-
-# Initialize domain services
-auth_service = AuthenticationService(user_repo, token_repo)
-user_service = UserService(user_repo)
-token_service = TokenService(token_repo)
+from ...lib.core.container import ApplicationContainer, get_container
 
 
 # Request/Response models
