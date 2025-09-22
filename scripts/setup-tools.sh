@@ -85,6 +85,7 @@ declare -A TOOLS=(
     ["pants"]="2.28+"
     ["jq"]="1.6+"
     ["cruft"]="2.0+"
+    ["pre-commit"]="3.0+"
 )
 
 # Check function
@@ -159,6 +160,13 @@ install_tool_macos() {
                 pip3 install --user cruft
             fi
             ;;
+        pre-commit)
+            if command -v pipx &> /dev/null; then
+                pipx install pre-commit
+            else
+                pip3 install --user pre-commit
+            fi
+            ;;
     esac
 }
 
@@ -216,6 +224,13 @@ install_tool_linux() {
                 pipx install cruft
             else
                 pip3 install --user cruft
+            fi
+            ;;
+        pre-commit)
+            if command -v pipx &> /dev/null; then
+                pipx install pre-commit
+            else
+                pip3 install --user pre-commit
             fi
             ;;
     esac
@@ -314,6 +329,23 @@ if ! docker info &> /dev/null 2>&1; then
     echo "  Please start Docker Desktop or Docker service"
 else
     echo -e "${GREEN}✓ Docker is running${RESET}"
+fi
+
+# Pre-commit hooks
+if [ -f .pre-commit-config.yaml ]; then
+    if command -v pre-commit &> /dev/null; then
+        if [ -d .git ]; then
+            pre-commit install &> /dev/null
+            echo -e "${GREEN}✓ Pre-commit hooks installed${RESET}"
+        else
+            echo -e "${YELLOW}⚠ Git repository not initialized, skipping pre-commit hooks${RESET}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ Pre-commit not found${RESET}"
+        echo "  Run: pip install pre-commit && pre-commit install"
+    fi
+else
+    echo -e "${YELLOW}⚠ No .pre-commit-config.yaml found${RESET}"
 fi
 
 # PATH setup

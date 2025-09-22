@@ -67,6 +67,17 @@ init-project: ## Initialize project after template creation (cleanup + setup)
 	@echo "📦 Setting up development environment..."
 	@./scripts/setup-tools.sh
 	@echo ""
+	@echo "🔗 Installing pre-commit hooks..."
+	@if command -v pre-commit > /dev/null 2>&1; then \
+		if [ -d .git ] && [ -f .pre-commit-config.yaml ]; then \
+			pre-commit install > /dev/null 2>&1 && echo "✓ Pre-commit hooks installed" || echo "⚠️  Pre-commit hooks installation failed"; \
+		else \
+			echo "⚠️  Git not initialized or .pre-commit-config.yaml missing"; \
+		fi \
+	else \
+		echo "⚠️  Pre-commit not installed. Run: pip install pre-commit"; \
+	fi
+	@echo ""
 	@echo "✅ Project initialization complete!"
 	@echo "Next: Configure .env file and run 'make bootstrap'"
 
