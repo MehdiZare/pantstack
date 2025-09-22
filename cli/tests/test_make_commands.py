@@ -42,7 +42,7 @@ class TestMakeCommands:
         # Cleanup
         try:
             os.unlink(temp_path)
-        except:
+        except OSError:
             pass
 
     def test_make_help_command(self, project_root, makefile_exists):

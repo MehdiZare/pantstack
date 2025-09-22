@@ -138,7 +138,7 @@ class DevelopmentStrategy(ConfigStrategy):
         # Check for config files
         config_paths = [
             f"config/services/{service_name}/development.yaml",
-            f"config/environments/development.yaml",
+            "config/environments/development.yaml",
             "config/defaults.yaml",
         ]
 

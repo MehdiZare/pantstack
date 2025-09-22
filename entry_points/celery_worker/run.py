@@ -1,12 +1,10 @@
 """Run script for Celery worker."""
 
 import os
-import sys
 
 
 def main():
     """Run the Celery worker."""
-    from celery import current_app
     from celery.bin import worker
 
     from .app import app

@@ -1,7 +1,5 @@
 """Auth service configuration."""
 
-from typing import Optional
-
 from pydantic import Field
 
 from stack.libs.shared.core.config import (

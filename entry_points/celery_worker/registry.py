@@ -104,7 +104,7 @@ class CeleryRegistry(ServiceRegistry):
         if not any(q.name == "default" for q in self.queues):
             self.queues.append(Queue("default", routing_key="default"))
 
-        print(f"\n📊 Celery Configuration:")
+        print("\n📊 Celery Configuration:")
         print(f"  - Tasks registered: {len(self.tasks)}")
         print(f"  - Queues created: {len(self.queues)}")
         print(f"  - Routes configured: {len(self.routes)}")

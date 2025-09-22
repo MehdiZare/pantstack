@@ -50,7 +50,7 @@ class TestCLICommandsIntegration:
         # Cleanup requirements files
         for pattern in [
             f"requirements-{temp_service_name}-*.txt",
-            f"requirements-test_svc_*-*.txt",
+            "requirements-test_svc_*-*.txt",
         ]:
             for req_file in (project_root / "3rdparty" / "python").glob(pattern):
                 req_file.unlink()

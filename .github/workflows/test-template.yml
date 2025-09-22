@@ -130,13 +130,7 @@ jobs:
           test -f .cruft.json
 
           # Check that .cruft.json contains correct template info
-          python -c "
-import json
-with open('.cruft.json') as f:
-    cruft_data = json.load(f)
-    assert 'template' in cruft_data
-            print('Cruft metadata verified')
-          "
+          python -c "import json; f = open('.cruft.json'); cruft_data = json.load(f); assert 'template' in cruft_data; print('Cruft metadata verified')"
 
   test-make-commands:
     name: Test Make Commands

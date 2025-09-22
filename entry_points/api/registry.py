@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from shared.core.discovery import AutoDiscovery
 from shared.core.registry import SecurityGroup, ServiceManifest, ServiceRegistry

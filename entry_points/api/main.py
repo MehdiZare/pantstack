@@ -1,6 +1,5 @@
 """Main FastAPI application with automatic service discovery."""
 
-import os
 from typing import Any, Dict
 
 from fastapi import Depends, FastAPI
@@ -13,9 +12,8 @@ from shared.core.security import (
     admin_endpoint,
     authenticated_endpoint,
     internal_endpoint,
-    public_endpoint,
 )
-from shared.utils import get_config, set_config, setup_logging
+from shared.utils import set_config, setup_logging
 
 from .registry import APIRegistry
 

@@ -339,5 +339,5 @@ def assert_no_test_artifacts(project_root: Path) -> None:
                 artifact_list.append(f"{resource_type}: {items}")
 
         raise AssertionError(
-            f"Test artifacts found after cleanup:\n" + "\n".join(artifact_list)
+            "Test artifacts found after cleanup:\n" + "\n".join(artifact_list)
         )

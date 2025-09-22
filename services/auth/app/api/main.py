@@ -1,14 +1,13 @@
 """Auth service API endpoints."""
 
 from contextlib import asynccontextmanager
-from typing import Dict, Optional
+from typing import Dict
 
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
 from ...adapters.repositories import InMemoryTokenRepository, InMemoryUserRepository
-from ...domain.models import UserRole
 from ...domain.services import AuthenticationService, TokenService, UserService
 
 # Initialize repositories (in production, these would be injected)
@@ -99,7 +98,7 @@ async def register(request: RegisterRequest) -> Dict[str, str]:
         }
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed",

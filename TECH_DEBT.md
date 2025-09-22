@@ -1,88 +1,76 @@
 # Technical Debt - Code Quality Issues
 
 ## Overview
-During the pre-commit integration, we discovered several code quality issues that need to be addressed. These have been temporarily suppressed in `.flake8` and `.pre-commit-config.yaml` to allow development to continue.
+During the pre-commit integration, we discovered several code quality issues. Most critical issues have been fixed, but some remain and are temporarily suppressed in `.flake8`.
 
-## Issues to Fix
+## ✅ Issues Fixed
 
 ### 1. YAML Syntax Errors in GitHub Workflows
-- **Files affected**:
-  - `.github/workflows/ci-enhanced.yml` (line 212)
-  - `.github/workflows/test-template.yml` (lines 134-135)
-  - `.github/workflows/test.yml` (line 44)
-- **Issue**: Multiline Python strings in YAML need proper quoting
-- **Priority**: HIGH - Workflows may fail
+- **Fixed**: `.github/workflows/test-template.yml` - Converted multiline Python to single line
+- **No actual errors found in**: `ci-enhanced.yml` and `test.yml`
 
-### 2. Flake8 Violations (76 total)
+### 2. Critical Flake8 Violations Fixed
+- **F821** (2): Fixed undefined names - Added missing imports
+- **F541** (5): Fixed f-string placeholders - Removed unnecessary 'f' prefixes
+- **E203** (2): Fixed whitespace issues - Removed spaces before colons
+- **E722** (7): Fixed bare except clauses - Added specific exception types
+- **E713** (1): Fixed membership test - Changed to proper syntax
 
-#### Unused Imports (F401) - 35+ occurrences
-- Remove unused imports from test files and service modules
+## ⚠️ Remaining Issues
+
+### Flake8 Violations (~60 remaining)
+
+#### Unused Imports (F401) - ~30 remaining
+- Mostly in test files where imports may be used by fixtures
 - Files: `cli/tests/*.py`, `services/auth/lib/**/*.py`, `entry_points/**/*.py`
+- **Priority**: LOW - Not critical for functionality
 
-#### Unused Variables (F841) - 25+ occurrences
-- Either use or remove unused variables
-- Common in test files where fixtures are created but not used
+#### Unused Variables (F841) - ~25 remaining
+- Common in test files where variables are created for side effects
+- Often legitimate in test setup/teardown
+- **Priority**: LOW - May be intentional in tests
 
-#### Bare Except Clauses (E722) - 7 occurrences
-- Specify exception types instead of bare `except:`
-- Files: `shared/core/environment.py`, `shared/core/health.py`, `cli/tests/test_make_commands.py`
-
-#### Missing F-string Placeholders (F541) - 5 occurrences
-- Remove 'f' prefix from strings without placeholders
-- Files: `entry_points/celery_worker/*.py`, `shared/core/*.py`
-
-#### Undefined Names (F821) - 2 occurrences
-- `services/auth/lib/modules/auth/services.py`: Missing `TokenVerifyResponse` import
-- `tests/template/test_template_validation.py`: Undefined `template_dir`
-
-#### Whitespace Issues (E203) - 2 occurrences
-- Remove whitespace before ':' in type hints
-- Files: `services/agent/app/api/main.py`, `services/auth/adapters/repositories/in_memory_user_repository.py`
-
-## Temporary Exclusions Added
+## Temporary Exclusions Remaining
 
 ### .flake8
 ```ini
 per-file-ignores =
-    # Test files
-    cli/tests/*.py: F401,F841,E722
-    tests/**/*.py: F401,F841,F821,E722,E713,F541
-    # Service files
-    services/*/app/api/main.py: F401,F841,E203
-    services/auth/lib/**/*.py: F401,F821
-    # Other
-    entry_points/**/*.py: F401,F841,F541
-    shared/core/*.py: F401,F841,F821,E722,F541
+    # Test files with unused imports/variables
+    cli/tests/*.py: F401,F841
+    tests/**/*.py: F401,F841
+    scripts/tests/*.py: F401,F841
+    shared/tests/*.py: F401,F841
+    # Service files with remaining unused imports
+    services/auth/lib/**/*.py: F401
+    services/auth/tests/**/*.py: F401
+    entry_points/**/*.py: F401,F841
+    shared/core/*.py: F401,F841
     stack/infra/**/*.py: F401
 ```
 
 ### .pre-commit-config.yaml
-```yaml
-- id: check-yaml
-  exclude: '^.github/workflows/(ci-enhanced|test-template|test)\.yml$'
-```
+✅ All YAML checking re-enabled
 
 ## Action Items
 
-1. **Fix YAML workflows** (Priority: HIGH)
-   - Properly quote multiline Python strings
-   - Test workflows locally before committing
+1. ✅ **YAML workflows** - COMPLETED
+   - Fixed multiline Python strings in test-template.yml
+   - All workflows now pass YAML validation
 
-2. **Clean up imports** (Priority: MEDIUM)
-   - Use `autoflake` to remove unused imports
-   - Review and remove unnecessary dependencies
+2. ✅ **Critical code issues** - COMPLETED
+   - Fixed all undefined names (F821)
+   - Fixed all f-string placeholders (F541)
+   - Fixed all whitespace issues (E203)
+   - Fixed all bare except clauses (E722)
 
-3. **Fix exception handling** (Priority: MEDIUM)
-   - Replace bare excepts with specific exception types
-   - Add proper error handling and logging
+3. **Clean up test imports** (Priority: LOW)
+   - Review unused imports in test files
+   - Some may be legitimate (fixtures, side effects)
+   - Use `autoflake` cautiously on test files
 
-4. **Fix test code** (Priority: LOW)
-   - Clean up test fixtures and variables
-   - Remove debug code and unused test helpers
-
-5. **Remove temporary exclusions** (Priority: LOW)
-   - Once issues are fixed, remove from `.flake8`
-   - Re-enable YAML checking for workflow files
+4. **Remove remaining exclusions** (Priority: LOW)
+   - Gradually clean up F401 and F841 violations
+   - Focus on non-test files first
 
 ## Commands to Help Fix
 

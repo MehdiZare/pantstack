@@ -9,16 +9,17 @@ import-restrictions =
 
 per-file-ignores =
     services/web/app/api/main.py: E221,E222,E231,E501,E702
-    # Temporary exclusions for test files - TODO: Fix these properly
-    cli/tests/*.py: F401,F841,E722
-    tests/**/*.py: F401,F841,F821,E722,E713,F541
+    # Black formatting conflicts - slicing with spaces
+    services/agent/app/api/main.py: E203
+    services/auth/adapters/repositories/in_memory_user_repository.py: E203
+    # Remaining test file issues - TODO: Clean up unused variables in tests
+    cli/tests/*.py: F401,F841
+    tests/**/*.py: F401,F841
     scripts/tests/*.py: F401,F841
-    shared/tests/*.py: F401,F841,E722
-    # Temporary exclusions for service files - TODO: Fix these properly
-    services/*/app/api/main.py: F401,F841,E203
-    services/auth/lib/**/*.py: F401,F821
-    services/auth/adapters/**/*.py: E203
+    shared/tests/*.py: F401,F841
+    # Service files with remaining issues
+    services/auth/lib/**/*.py: F401
     services/auth/tests/**/*.py: F401
-    entry_points/**/*.py: F401,F841,F541
-    shared/core/*.py: F401,F841,F821,E722,F541
+    entry_points/**/*.py: F401,F841
+    shared/core/*.py: F401,F841
     stack/infra/**/*.py: F401

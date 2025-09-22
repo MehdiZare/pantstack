@@ -33,7 +33,7 @@ def create_celery_app() -> Celery:
     # Store registry in app for access
     app.registry = registry
 
-    print(f"\n✅ Celery worker configured")
+    print("\n✅ Celery worker configured")
     print(f"  - Services: {len(manifests)}")
     print(f"  - Broker: {config.broker_url}")
     print(f"  - Backend: {config.result_backend}")

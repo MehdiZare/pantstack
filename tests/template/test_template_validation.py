@@ -114,7 +114,7 @@ class TestTemplateValidation:
 
         # Check all relevant files
         for file_path in template_dir.rglob("*"):
-            if file_path.is_file() and not ".git" in str(file_path):
+            if file_path.is_file() and ".git" not in str(file_path):
                 try:
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
@@ -350,7 +350,7 @@ class TestTemplateValidation:
             len(non_executable) == 0
         ), f"Non-executable scripts found: {non_executable}"
 
-    def test_template_does_not_contain_secrets(self, all_template_files):
+    def test_template_does_not_contain_secrets(self, all_template_files, template_dir):
         """Test that template doesn't contain any secrets or sensitive data."""
         secret_patterns = [
             re.compile(r'aws_access_key_id\s*=\s*["\']?AKI[A-Z0-9]{16}'),

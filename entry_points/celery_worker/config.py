@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 from pydantic import Field
 
-from shared.core.config import BaseConfig, CeleryConfig
+from shared.core.config import CeleryConfig
 
 
 class CeleryWorkerConfig(CeleryConfig):

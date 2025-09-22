@@ -11,6 +11,7 @@ from services.auth.lib.modules.auth.schemas import (
     LoginResponse,
     RegisterRequest,
     TokenResponse,
+    TokenVerifyResponse,
 )
 from services.auth.lib.modules.users.repositories import UserRepository
 from services.auth.lib.modules.users.schemas import User, UserCreate
@@ -357,7 +358,7 @@ class AuthService:
             expires_in=self.config.auth_module.access_token_expire_minutes * 60,
         )
 
-    async def verify_token(self, token: str) -> "TokenVerifyResponse":
+    async def verify_token(self, token: str) -> TokenVerifyResponse:
         """Verify a JWT token.
 
         Args:
@@ -369,9 +370,6 @@ class AuthService:
         Raises:
             ValueError: If token is invalid
         """
-        from datetime import datetime
-
-        from services.auth.lib.modules.auth.schemas import TokenVerifyResponse
         from stack.libs.shared.core.security import decode_access_token
 
         try:

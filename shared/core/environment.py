@@ -61,7 +61,7 @@ class EnvironmentDetector:
                 "http://localhost:4566/_localstack/health", timeout=1
             )
             return response.status_code == 200
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -187,7 +187,7 @@ class EnvironmentManager:
         try:
             response = requests.get(url, timeout=1)
             return response.status_code == 200
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -199,7 +199,7 @@ class EnvironmentManager:
             client = redis.Redis(host=host, port=port, socket_connect_timeout=1)
             client.ping()
             return True
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -218,7 +218,7 @@ class EnvironmentManager:
             )
             conn.close()
             return True
-        except:
+        except Exception:
             return False
 
     @classmethod

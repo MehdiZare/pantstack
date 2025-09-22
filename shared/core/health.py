@@ -66,7 +66,7 @@ class ServiceHealth:
             )
             client.ping()
             return True
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -102,7 +102,7 @@ class ServiceHealth:
             )
             conn.close()
             return True
-        except:
+        except Exception:
             return False
 
     @staticmethod
@@ -287,7 +287,7 @@ class ConfigValidator:
         errors = ConfigValidator.validate_config(config, environment)
         if errors:
             raise ValueError(
-                f"Configuration validation failed:\n"
+                "Configuration validation failed:\n"
                 + "\n".join(f"  - {e}" for e in errors)
             )
 

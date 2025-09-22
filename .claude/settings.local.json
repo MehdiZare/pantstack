@@ -67,7 +67,8 @@
       "Bash(ENV=test LOCALSTACK=true ./pants test tests/integration:: --tag=integration --no-test-use-coverage)",
       "Bash(git commit:*)",
       "Bash(for service in agent api auth web)",
-      "Bash(do echo \"=== $service service structure ===\" find \"/Users/mehdi/REPOs/open-source/pantstack/services/$service\" -type f -name \"*.py\")"
+      "Bash(do echo \"=== $service service structure ===\" find \"/Users/mehdi/REPOs/open-source/pantstack/services/$service\" -type f -name \"*.py\")",
+      "Bash(flake8:*)"
     ],
     "deny": [],
     "ask": []
