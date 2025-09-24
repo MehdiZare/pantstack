@@ -24,7 +24,11 @@
       "Bash(docker exec:*)",
       "Bash(supabase status:*)",
       "Bash(supabase start:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
