@@ -34,6 +34,11 @@ sample_test_api = "lockfiles/sample_test_api.lock"
 test_cleanup_core = "lockfiles/test_cleanup_core.lock"
 test_cleanup_api = "lockfiles/test_cleanup_api.lock"
 
+
+
+test_orders_core = "lockfiles/test_orders_core.lock"
+test_orders_api = "lockfiles/test_orders_api.lock"
+
 # Entry point resolves
 api_main = "lockfiles/api_main.lock"
 celery_main = "lockfiles/celery_main.lock"

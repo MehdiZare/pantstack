@@ -47,7 +47,7 @@ python_sources(
     sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py"],
     resolve="${name}_core",
     dependencies=[
-        "stack/libs/shared",
+        "//stack/libs/shared:shared_${name}_core",
         "stack/events/libs",
         "3rdparty/python:${name}_core_reqs",
     ],
@@ -141,65 +141,47 @@ cat > "$base"/lib/core/container.py << 'EOF'
 from dependency_injector import containers, providers
 
 from shared.core.container import (
-    ApplicationContainer as BaseApplicationContainer,
+    ApplicationContainer,
     InfrastructureContainer,
-    RepositoryContainer as BaseRepositoryContainer,
-    ServiceContainer as BaseServiceContainer,
+    RepositoryContainer,
+    ServiceContainer,
+    ServiceConfig,
+    BaseRepository,
+    BaseService,
 )
 
 
-class ${NAME}Config:
+class ${NAME}Config(ServiceConfig):
     """${name} service configuration."""
 
     def __init__(self):
-        self.service_name = "${name}"
-        self.version = "1.0.0"
-        self.environment = "development"
-
-        # Database config
-        self.database = {
-            "url": "postgresql://localhost:5432/${name}_db",
-        }
-
-        # Redis config
-        self.redis = {
-            "host": "localhost",
-            "port": 6379,
-            "db": 1,
-        }
-
-        # AWS config
-        self.aws = {
-            "region": "us-east-1",
-            "endpoint_url": "http://localhost:4566",
-        }
+        super().__init__(service_name="${name}")
+        # Add service-specific configuration here
 
 
-class ${NAME}RepositoryContainer(BaseRepositoryContainer):
+class ${NAME}RepositoryContainer(RepositoryContainer):
     """Repository layer container for ${name} service."""
 
     infrastructure = providers.DependenciesContainer()
 
     # Example repository (uncomment and modify as needed)
-    # from services.${name}.adapters.repositories.example_repository import ExampleRepository
-    # example_repository = providers.Singleton(
-    #     ExampleRepository,
-    #     db_client=infrastructure.database_client,
-    # )
+    example_repository = providers.Singleton(
+        "services.${name}.adapters.repositories.example_repository.ExampleRepository",
+        db_client=infrastructure.database_client,
+    )
 
 
-class ${NAME}ServiceContainer(BaseServiceContainer):
+class ${NAME}ServiceContainer(ServiceContainer):
     """Service layer container for ${name} service."""
 
     repositories = providers.DependenciesContainer()
     infrastructure = providers.DependenciesContainer()
 
     # Example service (uncomment and modify as needed)
-    # from services.${name}.domain.services.example_service import ExampleService
-    # example_service = providers.Factory(
-    #     ExampleService,
-    #     repository=repositories.example_repository,
-    # )
+    example_service = providers.Factory(
+        "services.${name}.domain.services.example_service.ExampleService",
+        repository=repositories.example_repository,
+    )
 
 
 class ${NAME}InfrastructureContainer(InfrastructureContainer):
@@ -207,18 +189,18 @@ class ${NAME}InfrastructureContainer(InfrastructureContainer):
 
     config = providers.DependenciesContainer()
 
-    # Database client
+    # Database client (mock implementation for now)
     database_client = providers.Singleton(
-        lambda: {"connected": True},
+        lambda: {"connected": True, "type": "mock"},
     )
 
-    # Redis client
+    # Redis client (mock implementation for now)
     redis_client = providers.Singleton(
-        lambda: {"connected": True},
+        lambda: {"connected": True, "type": "mock"},
     )
 
 
-class ApplicationContainer(BaseApplicationContainer):
+class ${NAME}ApplicationContainer(ApplicationContainer):
     """Main container for ${name} service."""
 
     # Configuration
@@ -248,6 +230,15 @@ class ApplicationContainer(BaseApplicationContainer):
         print("Initializing ${name} service resources...")
         # Add initialization logic here
 
+        # Automatically discover and register modules
+        try:
+            from services.${name}.lib import MODULES
+            for module in MODULES:
+                self.register_module(module)
+                print(f"Registered module: {module.name}")
+        except ImportError:
+            print("No modules found for service ${name}")
+
     async def shutdown_resources(self):
         """Shutdown async resources."""
         print("Shutting down ${name} service resources...")
@@ -255,14 +246,14 @@ class ApplicationContainer(BaseApplicationContainer):
 
 
 # Global container instance
-_container: ApplicationContainer = None
+_container: ${NAME}ApplicationContainer | None = None
 
 
-def get_container() -> ApplicationContainer:
+def get_container() -> ${NAME}ApplicationContainer:
     """Get or create the container instance."""
     global _container
     if _container is None:
-        _container = ApplicationContainer()
+        _container = ${NAME}ApplicationContainer()
     return _container
 EOF
 
@@ -270,14 +261,15 @@ cat > "$base"/app/api/main.py << 'EOF'
 """Main FastAPI application for ${name} service."""
 
 from contextlib import asynccontextmanager
+from typing import Dict, Any
 
 from dependency_injector.wiring import Provide, inject
-from fastapi import Depends, FastAPI
-from structlog import get_logger
+from fastapi import Depends, FastAPI, HTTPException
+import structlog
 
-from services.${name}.lib.core.container import ApplicationContainer, get_container
+from services.${name}.lib.core.container import ${NAME}ApplicationContainer, get_container
 
-logger = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 # Initialize container
 container = get_container()
@@ -291,6 +283,17 @@ async def lifespan(app: FastAPI):
     await container.init_resources()
     container.wire(modules=[__name__])
 
+    # Include module routes
+    try:
+        from services.${name}.lib import MODULES
+        for module in MODULES:
+            router = module.get_routes()
+            if router:
+                app.include_router(router)
+                logger.info(f"Added routes for module: {module.name}")
+    except ImportError:
+        logger.info("No modules found to include routes")
+
     yield
 
     # Shutdown
@@ -299,20 +302,40 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="${name} Service",
+    title="${NAME} Service",
     version="1.0.0",
+    description="${NAME} microservice with DDD architecture and modular design",
     lifespan=lifespan,
 )
 
 
 @app.get("/healthz")
-def healthz() -> dict[str, str]:
+async def healthz() -> Dict[str, Any]:
     """Health check endpoint."""
-    return {"status": "ok", "service": "${name}"}
+    # Check service health
+    health_status = {
+        "status": "healthy",
+        "service": "${name}",
+        "version": "1.0.0",
+        "modules": []
+    }
+
+    # Check module health
+    try:
+        from services.${name}.lib import MODULES
+        for module in MODULES:
+            health_status["modules"].append({
+                "name": module.name,
+                "status": "healthy"
+            })
+    except ImportError:
+        pass
+
+    return health_status
 
 
 @app.get("/")
-def root() -> dict[str, str]:
+def root() -> Dict[str, str]:
     """Root endpoint."""
     return {
         "service": "${name}",
@@ -322,19 +345,24 @@ def root() -> dict[str, str]:
 
 
 # Example endpoint with dependency injection
-# @app.get("/example")
-# @inject
-# async def example(
-#     service = Depends(Provide[ApplicationContainer.services.example_service]),
-# ):
-#     """Example endpoint using dependency injection."""
-#     return await service.do_something()
+@app.get("/example")
+@inject
+async def example_endpoint(
+    service=Depends(Provide[${NAME}ApplicationContainer.services.example_service]),
+) -> Dict[str, Any]:
+    """Example endpoint using dependency injection."""
+    try:
+        result = await service.do_something()
+        return {"status": "success", "data": result}
+    except Exception as e:
+        logger.error(f"Error in example endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def run() -> None:
     """Run the application."""
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
 
 
 if __name__ == "__main__":
@@ -441,6 +469,15 @@ class ExampleService:
         """
         self.repository = repository
 
+    async def do_something(self) -> dict:
+        """Example method for demonstration."""
+        return {
+            "service": "${name}",
+            "action": "do_something",
+            "status": "completed",
+            "timestamp": "2024-01-01T00:00:00Z"
+        }
+
     async def create_example(self, entity: ExampleEntity) -> ExampleEntity:
         """Create example with business rules validation.
 
@@ -476,20 +513,20 @@ cat > "$base"/adapters/repositories/example_repository.py << 'EOF'
 from typing import List, Optional
 from uuid import UUID
 
+from shared.core.container import BaseRepository
 from services.${name}.domain.models.example import ExampleEntity
 
 
-class ExampleRepository:
+class ExampleRepository(BaseRepository):
     """Repository for example data."""
 
-    def __init__(self, db_client):
+    def __init__(self, db_client=None, **kwargs):
         """Initialize repository.
 
         Args:
             db_client: Database client
         """
-        self.db = db_client
-        self._storage = {}  # In-memory storage for now
+        super().__init__(db_client=db_client, **kwargs)
 
     async def create(self, entity: ExampleEntity) -> ExampleEntity:
         """Create an entity."""
@@ -598,6 +635,7 @@ cat > "3rdparty/python/requirements-$SVC-core.txt" << 'EOF'
 pydantic>=2.0.0
 dependency-injector>=4.41.0
 structlog>=24.1.0
+asyncio-mqtt>=0.16.1
 EOF
 
 cat > "3rdparty/python/requirements-$SVC-api.txt" << 'EOF'
@@ -608,6 +646,9 @@ httpx>=0.24.0
 python-multipart>=0.0.6
 dependency-injector>=4.41.0
 structlog>=24.1.0
+jinja2>=3.1.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.0
 EOF
 
 # Update pants.toml with new resolvers

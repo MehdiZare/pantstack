@@ -1,12 +1,50 @@
 # Pantstack (services-first)
 
-Pantstack is a batteries-included monorepo template for layered services with Pants, FastAPI, Pulumi on AWS, and GitHub Actions.
+Pantstack is a batteries-included monorepo template for building modular microservices with Pants, FastAPI, Pulumi on AWS, and GitHub Actions.
 
-- Service independence (per-service resolves, infra, packaging, and tests)
-- Safe cross-service reuse via `public/` facades and shared `stack/*` libs
-- Single ECR per project; image tags encode service + branch + version
-- CI/CD for lint, typecheck, tests, package, deploy, and PR preview stacks
-- Pulumi Cloud (Free) backend; optional ESC (Environments) integration
+## Key Features
+- **Multi-module services** with internal modularity and external cohesion
+- **Service independence** via per-service resolves, infrastructure, and tests
+- **Selective module loading** for optimized entry points (API, Lambda, Worker)
+- **Safe cross-service communication** via `public/` facades
+- **Single ECR repository** with structured tagging
+- **Comprehensive CI/CD** with PR preview stacks and semantic versioning
+- **Infrastructure as Code** with Pulumi Cloud (Free tier)
+
+## Architecture Overview
+
+### Core Concepts
+
+**Services** are bounded contexts that encapsulate related business capabilities:
+- Each service owns its data, infrastructure, and deployment lifecycle
+- Services communicate only through well-defined public interfaces
+- Examples: `auth` (authentication), `web` (frontend), `api` (gateway), `agent` (workers)
+
+**Modules** are internal components within a service:
+- Modules group related functionality within a service boundary
+- Modules can directly interact with other modules in the same service
+- Modules enable gradual service decomposition
+- Examples: `auth/lib/modules/users`, `auth/lib/modules/sessions`, `auth/lib/modules/tokens`
+
+**Entry Points** are deployment targets with selective module loading:
+- **API**: Full service with all modules for HTTP endpoints
+- **Lambda**: Lightweight functions with only required modules
+- **Worker**: Background processors with task-specific modules
+- **CLI**: Administrative tools with management modules
+
+**Public Facades** define service contracts:
+- Located in `services/{service}/public/`
+- Expose stable APIs for cross-service communication
+- Hide internal implementation details
+- Enable service evolution without breaking contracts
+
+### Architecture Principles
+
+1. **Service Autonomy**: Services are independently deployable with isolated dependencies
+2. **Module Cohesion**: Related functionality stays together within service boundaries
+3. **Selective Loading**: Entry points load only the modules they need
+4. **Contract-First**: Services interact through explicit, versioned contracts
+5. **Progressive Complexity**: Start simple, add modules as services grow
 
 ## Testing
 
@@ -178,13 +216,23 @@ If you have the template locally:
 make new-project  # Interactive prompts for all values
 ```
 
-## Commands You’ll Use Often
+## Commands You'll Use Often
 
-- `make new-service S=<name>` — scaffold a new layered service under `services/<name>`
-- `make mod S=web` — test and package a service
-- `make stack-up S=web ENV=test` — deploy a service stack
-- `make stack-outputs S=web ENV=test` — show stack outputs
-- `make gha-deploy S=web ENV=prod` — trigger deploy workflow
+### Service & Module Management
+- `make new-service S=<name>` — Create a new service with standard structure
+- `make new-module S=<service> M=<module>` — Add a module to an existing service (coming soon)
+- `make mod S=web` — Test and package a service with all its modules
+
+### Infrastructure & Deployment
+- `make stack-up S=web ENV=test` — Deploy a service stack to an environment
+- `make stack-outputs S=web ENV=test` — Show deployed stack outputs
+- `make gha-deploy S=web ENV=prod` — Trigger GitHub Actions deployment
+
+### Development Workflow
+- `make fmt` — Format all code with Black and isort
+- `make lint` — Run linting checks
+- `make test` — Run all tests
+- `make locks` — Regenerate dependency lockfiles
 
 Note: Pants is installed via the official bootstrap script. Local targets use `./pants`.
 
@@ -195,21 +243,59 @@ Note: Pants is installed via the official bootstrap script. Local targets use `.
 - Main merges → stable releases (`1.2.0`) + deploy to prod
 - See `VERSIONING.md` for PR title format and label overrides
 
-## Architecture
+## Project Structure
 
-- Services live under `services/<svc>` with layered folders:
-  - `app/{api,worker}` — FastAPI routers and workers
-  - `domain/{models,services,ports}` — business logic and interfaces only
-  - `adapters/{repositories,clients}` — concrete adapters (DynamoDB, EventBridge, S3, SQS, httpx)
-  - `public/` — facades for cross-service access and DI providers
-  - `infra/pulumi/` — ECS/Fargate and supporting AWS infra
-  - `tests/{unit,integration,e2e}` — tests (prefer fast unit tests)
-- Shared libs live under `stack/*`:
-  - `stack/libs/shared` (logging, settings, aws client)
-  - `stack/events` (event contracts)
-  - `stack/infra/components` (ECS HTTP/Worker, Redis components)
-  - `stack/agents` (agent runner stub)
-  - Foundation infra: `stack/infra/foundation` (shared VPC, ECR, GH setup)
+```
+pantstack/
+├── services/                    # Bounded context services
+│   └── {service}/               # e.g., auth, web, api, agent
+│       ├── app/                 # Application layer
+│       │   ├── api/             # FastAPI HTTP endpoints
+│       │   └── worker/          # Background workers (Celery)
+│       ├── domain/              # Business logic (DDD)
+│       │   ├── models/          # Domain entities
+│       │   ├── services/        # Domain services
+│       │   └── ports/           # Interface definitions
+│       ├── adapters/            # External integrations
+│       │   ├── repositories/    # Data persistence
+│       │   └── clients/         # External service clients
+│       ├── lib/                 # Service-specific libraries
+│       │   └── modules/         # Internal service modules
+│       │       └── {module}/    # Module implementation
+│       │           ├── module.py     # Module interface
+│       │           ├── routes.py     # Module API routes
+│       │           ├── tasks.py      # Module async tasks
+│       │           ├── handlers.py   # Module event handlers
+│       │           └── schemas.py    # Module data models
+│       ├── public/              # Service public API
+│       │   └── __init__.py      # Service manifest & contracts
+│       ├── infrastructure/      # Pulumi IaC for service
+│       │   ├── __main__.py      # Infrastructure definition
+│       │   └── Pulumi.yaml      # Stack configuration
+│       └── tests/               # Service tests
+│           ├── unit/            # Fast, isolated tests
+│           └── integration/     # Service integration tests
+├── entry_points/                # Aggregation & deployment targets
+│   ├── api/                     # Main API gateway
+│   ├── celery_worker/           # Task worker entry point
+│   └── event_processor/         # Event handler entry point
+├── stack/                       # Platform-level code
+│   ├── libs/shared/             # Shared utilities
+│   ├── events/                  # Event definitions
+│   ├── agents/                  # Agent framework
+│   └── infra/                   # Infrastructure components
+│       ├── foundation/          # AWS foundation (VPC, ECR, IAM)
+│       └── components/          # Reusable Pulumi components
+├── shared/                      # Cross-service shared code
+│   ├── core/                    # Core abstractions
+│   └── utils/                   # Common utilities
+├── 3rdparty/python/             # External dependencies
+│   └── requirements-*.txt       # Per-service/resolver deps
+├── tests/                       # Repository-level tests
+│   ├── integration/             # Cross-service tests
+│   └── template/                # Template validation
+└── scripts/                     # Automation scripts
+```
 
 ## Local Development (LocalStack & Supabase)
 

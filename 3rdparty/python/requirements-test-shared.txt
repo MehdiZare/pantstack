@@ -1,8 +1,0 @@
-# Requirements for testing shared libraries
--r requirements-test.txt
--r requirements-shared.txt
-
-# Additional testing tools for shared components
-moto>=4.2,<5  # AWS service mocking
-boto3>=1.28,<2  # AWS SDK for testing
-redis>=4.6,<5  # Redis testing

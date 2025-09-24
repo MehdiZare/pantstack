@@ -4,7 +4,7 @@ python_sources(
     # Reuse admin resolves initially
     resolve="web_core",
     dependencies=[
-        "stack/libs/shared",
+        "//stack/libs/shared:shared_web_core",
         "stack/events/libs",
         "3rdparty/python:web_core_reqs",
     ],

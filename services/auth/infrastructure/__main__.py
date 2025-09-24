@@ -81,8 +81,7 @@ jwt_secret = aws.ssm.Parameter(
     "jwt-secret",
     name=f"/{service_name}/{env}/jwt-secret",
     type="SecureString",
-    value=config.get_secret("jwt_secret")
-    or pulumi.Output.secret("change-me-in-production"),
+    value=config.require_secret("jwt_secret"),
     tags=tags,
 )
 
@@ -98,8 +97,7 @@ supabase_key = aws.ssm.Parameter(
     "supabase-key",
     name=f"/{service_name}/{env}/supabase-anon-key",
     type="SecureString",
-    value=config.get_secret("supabase_anon_key")
-    or pulumi.Output.secret("development-key"),
+    value=config.require_secret("supabase_anon_key"),
     tags=tags,
 )
 
@@ -160,7 +158,7 @@ lambda_policy = aws.iam.Policy(
                     {
                         "Effect": "Allow",
                         "Action": ["sqs:SendMessage", "sqs:GetQueueAttributes"],
-                        "Resource": "*",  # Queue ARN would be better
+                        "Resource": args[3],  # Use specific queue ARN
                     },
                     {
                         "Effect": "Allow",
@@ -339,6 +337,7 @@ task_policy = aws.iam.Policy(
         supabase_url.arn,
         supabase_key.arn,
         event_bus_arn,
+        main_queue_url,
     ).apply(
         lambda args: json.dumps(
             {
@@ -346,7 +345,14 @@ task_policy = aws.iam.Policy(
                 "Statement": [
                     {
                         "Effect": "Allow",
-                        "Action": ["dynamodb:*"],
+                        "Action": [
+                            "dynamodb:GetItem",
+                            "dynamodb:PutItem",
+                            "dynamodb:UpdateItem",
+                            "dynamodb:DeleteItem",
+                            "dynamodb:Query",
+                            "dynamodb:Scan",
+                        ],
                         "Resource": [
                             args[0],
                             args[1],
@@ -364,7 +370,16 @@ task_policy = aws.iam.Policy(
                         "Action": ["events:PutEvents"],
                         "Resource": args[5],
                     },
-                    {"Effect": "Allow", "Action": ["sqs:*"], "Resource": "*"},
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "sqs:SendMessage",
+                            "sqs:ReceiveMessage",
+                            "sqs:DeleteMessage",
+                            "sqs:GetQueueAttributes",
+                        ],
+                        "Resource": args[6],  # Specific queue ARN
+                    },
                 ],
             }
         )
@@ -388,9 +403,36 @@ ecs_cluster = aws.ecs.Cluster(
     f"{service_name}-cluster", name=f"{service_name}-{env}", tags=tags
 )
 
+# Security Group for ALB
+alb_security_group = aws.ec2.SecurityGroup(
+    f"{service_name}-alb-sg",
+    vpc_id=vpc_id,
+    description=f"Security group for {service_name} ALB",
+    ingress=[
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=80,
+            to_port=80,
+            protocol="tcp",
+            cidr_blocks=["0.0.0.0/0"],  # ALB can accept public traffic
+        ),
+        aws.ec2.SecurityGroupIngressArgs(
+            from_port=443,
+            to_port=443,
+            protocol="tcp",
+            cidr_blocks=["0.0.0.0/0"],  # ALB can accept public HTTPS traffic
+        ),
+    ],
+    egress=[
+        aws.ec2.SecurityGroupEgressArgs(
+            from_port=0, to_port=0, protocol="-1", cidr_blocks=["0.0.0.0/0"]
+        )
+    ],
+    tags=tags,
+)
+
 # Security Group for ECS Service
 ecs_security_group = aws.ec2.SecurityGroup(
-    f"{service_name}-sg",
+    f"{service_name}-ecs-sg",
     vpc_id=vpc_id,
     description=f"Security group for {service_name} ECS service",
     ingress=[
@@ -398,7 +440,7 @@ ecs_security_group = aws.ec2.SecurityGroup(
             from_port=8000,
             to_port=8000,
             protocol="tcp",
-            cidr_blocks=["0.0.0.0/0"],  # Restrict in production
+            security_groups=[alb_security_group.id],  # Only allow traffic from ALB
         )
     ],
     egress=[
@@ -475,7 +517,7 @@ alb = aws.lb.LoadBalancer(
     name=f"{service_name}-{env}",
     internal=False,
     load_balancer_type="application",
-    security_groups=[ecs_security_group.id],
+    security_groups=[alb_security_group.id],
     subnets=subnet_ids,
     tags=tags,
 )
@@ -501,11 +543,41 @@ target_group = aws.lb.TargetGroup(
     tags=tags,
 )
 
-listener = aws.lb.Listener(
-    f"{service_name}-listener",
+# SSL Certificate for HTTPS
+ssl_cert = aws.acm.Certificate(
+    f"{service_name}-cert",
+    domain_name=config.get("domain_name", f"{service_name}-{env}.example.com"),
+    subject_alternative_names=[
+        f"*.{config.get('domain_name', f'{service_name}-{env}.example.com')}"
+    ],
+    validation_method="DNS",
+    tags=tags,
+)
+
+# HTTP Listener (redirect to HTTPS)
+http_listener = aws.lb.Listener(
+    f"{service_name}-http-listener",
     load_balancer_arn=alb.arn,
     port=80,
     protocol="HTTP",
+    default_actions=[
+        aws.lb.ListenerDefaultActionArgs(
+            type="redirect",
+            redirect=aws.lb.ListenerDefaultActionRedirectArgs(
+                port="443", protocol="HTTPS", status_code="HTTP_301"
+            ),
+        )
+    ],
+)
+
+# HTTPS Listener
+https_listener = aws.lb.Listener(
+    f"{service_name}-https-listener",
+    load_balancer_arn=alb.arn,
+    port=443,
+    protocol="HTTPS",
+    ssl_policy="ELBSecurityPolicy-TLS-1-2-2017-01",
+    certificate_arn=ssl_cert.arn,
     default_actions=[
         aws.lb.ListenerDefaultActionArgs(
             type="forward", target_group_arn=target_group.arn
@@ -533,12 +605,154 @@ ecs_service = aws.ecs.Service(
             container_port=8000,
         )
     ],
-    depends_on=[listener],
+    depends_on=[https_listener, http_listener],
+    tags=tags,
+)
+
+# CloudWatch Dashboard for monitoring
+dashboard = aws.cloudwatch.Dashboard(
+    f"{service_name}-dashboard",
+    dashboard_name=f"{service_name}-{env}",
+    dashboard_body=pulumi.Output.all(
+        ecs_cluster.name,
+        ecs_service.name,
+        alb.arn_suffix,
+        target_group.arn_suffix,
+        users_table.name,
+        sessions_table.name,
+    ).apply(
+        lambda args: json.dumps(
+            {
+                "widgets": [
+                    {
+                        "type": "metric",
+                        "properties": {
+                            "metrics": [
+                                [
+                                    "AWS/ECS",
+                                    "CPUUtilization",
+                                    "ServiceName",
+                                    args[1],
+                                    "ClusterName",
+                                    args[0],
+                                ],
+                                [".", "MemoryUtilization", ".", ".", ".", "."],
+                            ],
+                            "period": 300,
+                            "stat": "Average",
+                            "region": "us-west-2",
+                            "title": "ECS CPU and Memory",
+                        },
+                    },
+                    {
+                        "type": "metric",
+                        "properties": {
+                            "metrics": [
+                                [
+                                    "AWS/ApplicationELB",
+                                    "RequestCount",
+                                    "LoadBalancer",
+                                    args[2],
+                                ],
+                                [".", "ResponseTime", ".", "."],
+                                [".", "HTTPCode_Target_2XX_Count", ".", "."],
+                                [".", "HTTPCode_Target_4XX_Count", ".", "."],
+                                [".", "HTTPCode_Target_5XX_Count", ".", "."],
+                            ],
+                            "period": 300,
+                            "stat": "Sum",
+                            "region": "us-west-2",
+                            "title": "ALB Metrics",
+                        },
+                    },
+                    {
+                        "type": "metric",
+                        "properties": {
+                            "metrics": [
+                                [
+                                    "AWS/DynamoDB",
+                                    "ConsumedReadCapacityUnits",
+                                    "TableName",
+                                    args[4],
+                                ],
+                                [".", "ConsumedWriteCapacityUnits", ".", "."],
+                                [
+                                    ".",
+                                    "ConsumedReadCapacityUnits",
+                                    "TableName",
+                                    args[5],
+                                ],
+                                [".", "ConsumedWriteCapacityUnits", ".", "."],
+                            ],
+                            "period": 300,
+                            "stat": "Sum",
+                            "region": "us-west-2",
+                            "title": "DynamoDB Usage",
+                        },
+                    },
+                ]
+            }
+        )
+    ),
+)
+
+# CloudWatch Alarms
+high_cpu_alarm = aws.cloudwatch.MetricAlarm(
+    f"{service_name}-high-cpu",
+    name=f"{service_name}-{env}-high-cpu",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="CPUUtilization",
+    namespace="AWS/ECS",
+    period=300,
+    statistic="Average",
+    threshold=80.0,
+    alarm_description="ECS Service high CPU utilization",
+    dimensions={
+        "ServiceName": ecs_service.name,
+        "ClusterName": ecs_cluster.name,
+    },
+    tags=tags,
+)
+
+high_error_rate_alarm = aws.cloudwatch.MetricAlarm(
+    f"{service_name}-high-error-rate",
+    name=f"{service_name}-{env}-high-error-rate",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="HTTPCode_Target_5XX_Count",
+    namespace="AWS/ApplicationELB",
+    period=300,
+    statistic="Sum",
+    threshold=10.0,
+    alarm_description="High 5xx error rate",
+    dimensions={
+        "LoadBalancer": alb.arn_suffix,
+    },
+    tags=tags,
+)
+
+high_response_time_alarm = aws.cloudwatch.MetricAlarm(
+    f"{service_name}-high-response-time",
+    name=f"{service_name}-{env}-high-response-time",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="TargetResponseTime",
+    namespace="AWS/ApplicationELB",
+    period=300,
+    statistic="Average",
+    threshold=2.0,
+    alarm_description="High response time",
+    dimensions={
+        "LoadBalancer": alb.arn_suffix,
+    },
     tags=tags,
 )
 
 # Outputs
-pulumi.export("service_url", alb.dns_name)
+pulumi.export("service_url", pulumi.Output.format("https://{0}", alb.dns_name))
+pulumi.export("alb_dns_name", alb.dns_name)
+pulumi.export("ssl_certificate_arn", ssl_cert.arn)
 pulumi.export("users_table", users_table.name)
 pulumi.export("sessions_table", sessions_table.name)
 pulumi.export("verify_token_lambda", verify_token_lambda.name)
@@ -546,3 +760,7 @@ pulumi.export("process_signup_lambda", process_signup_lambda.name)
 pulumi.export("token_refresh_lambda", token_refresh_lambda.name)
 pulumi.export("ecs_cluster", ecs_cluster.name)
 pulumi.export("ecs_service", ecs_service.name)
+pulumi.export("dashboard_url", dashboard.dashboard_name)
+pulumi.export("high_cpu_alarm", high_cpu_alarm.name)
+pulumi.export("high_error_rate_alarm", high_error_rate_alarm.name)
+pulumi.export("high_response_time_alarm", high_response_time_alarm.name)

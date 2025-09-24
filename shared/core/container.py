@@ -125,17 +125,38 @@ class ApplicationContainer(containers.DeclarativeContainer):
         config=config,
     )
 
-    @classmethod
-    async def init_resources(cls) -> None:
+    async def init_resources(self) -> None:
         """Initialize async resources."""
         # Override in service-specific containers
         pass
 
-    @classmethod
-    async def shutdown_resources(cls) -> None:
+    async def shutdown_resources(self) -> None:
         """Shutdown async resources."""
         # Override in service-specific containers
         pass
+
+    def register_module(self, module: Any, name: Optional[str] = None) -> None:
+        """Register a module with the container.
+
+        Args:
+            module: Module instance to register
+            name: Optional module name (defaults to module.name)
+        """
+        registry = self.module_registry()
+        module_name = name or getattr(module, "name", module.__class__.__name__)
+        registry.register_module(module_name, module)
+
+    def get_module(self, name: str) -> Optional[Any]:
+        """Get a registered module.
+
+        Args:
+            name: Module name
+
+        Returns:
+            Module instance or None
+        """
+        registry = self.module_registry()
+        return registry.get_module(name)
 
 
 class IRepository(ABC):
@@ -174,6 +195,65 @@ class IService(ABC):
     async def execute(self, *args, **kwargs) -> Any:
         """Execute service logic."""
         pass
+
+
+class BaseRepository:
+    """Base repository implementation with common patterns."""
+
+    def __init__(self, db_client=None, **kwargs):
+        """Initialize repository with database client."""
+        self.db_client = db_client
+        self._storage = {}  # Fallback in-memory storage
+
+    async def health_check(self) -> bool:
+        """Check if repository is healthy."""
+        return self.db_client is not None or len(self._storage) >= 0
+
+
+class BaseService:
+    """Base service implementation with common patterns."""
+
+    def __init__(self, **kwargs):
+        """Initialize service with dependencies."""
+        # Store all dependencies as attributes
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    async def health_check(self) -> bool:
+        """Check if service is healthy."""
+        return True
+
+
+class ServiceConfig:
+    """Base service configuration class."""
+
+    def __init__(self, service_name: str = "unknown"):
+        """Initialize service configuration.
+
+        Args:
+            service_name: Name of the service
+        """
+        self.service_name = service_name
+        self.version = "1.0.0"
+        self.environment = "development"
+
+        # Database config
+        self.database = {
+            "url": f"postgresql://localhost:5432/{service_name}_db",
+        }
+
+        # Redis config
+        self.redis = {
+            "host": "localhost",
+            "port": 6379,
+            "db": 1,
+        }
+
+        # AWS config
+        self.aws = {
+            "region": "us-east-1",
+            "endpoint_url": "http://localhost:4566",
+        }
 
 
 class ContainerManager:

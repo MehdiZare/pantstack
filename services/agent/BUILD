@@ -2,7 +2,7 @@ python_sources(
     name="agent_core",
     sources=["domain/**/*.py", "adapters/**/*.py", "public/**/*.py"],
     resolve="agent_core",
-    dependencies=["stack/libs/shared", "stack/agents", "stack/events/libs", "3rdparty/python:agent_core_reqs"],
+    dependencies=["//stack/libs/shared:shared_agent_core", "stack/agents", "stack/events/libs", "3rdparty/python:agent_core_reqs"],
 )
 
 python_sources(

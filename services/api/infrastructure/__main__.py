@@ -340,7 +340,144 @@ svc = aws.ecs.Service(
 )
 
 
-pulumi.export("api_url", api.api_endpoint)
+# Create SSL certificate for the service
+ssl_cert = aws.acm.Certificate(
+    "api-cert",
+    domain_name=os.getenv("DOMAIN_NAME", f"api-{BRANCH}.example.com"),
+    validation_method="DNS",
+)
+
+# Create CloudWatch Dashboard
+dashboard = aws.cloudwatch.Dashboard(
+    "api-dashboard",
+    dashboard_name=f"{PROJECT_SLUG}-api",
+    dashboard_body=pulumi.Output.json_dumps(
+        {
+            "widgets": [
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 0,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [
+                                "AWS/ECS",
+                                "CPUUtilization",
+                                "ServiceName",
+                                api_svc.name,
+                                "ClusterName",
+                                cluster.name,
+                            ],
+                            [".", "MemoryUtilization", ".", ".", ".", "."],
+                        ],
+                        "period": 300,
+                        "stat": "Average",
+                        "region": AWS_REGION,
+                        "title": "ECS Service Metrics",
+                    },
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 6,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [
+                                "AWS/ApplicationELB",
+                                "TargetResponseTime",
+                                "LoadBalancer",
+                                lb.arn_suffix,
+                            ],
+                            [".", "RequestCount", ".", "."],
+                        ],
+                        "period": 300,
+                        "stat": "Sum",
+                        "region": AWS_REGION,
+                        "title": "ALB Metrics",
+                    },
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 12,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [
+                                "AWS/SQS",
+                                "ApproximateNumberOfVisibleMessages",
+                                "QueueName",
+                                queue.name,
+                            ],
+                            [".", "NumberOfMessagesSent", ".", "."],
+                            [".", "NumberOfMessagesReceived", ".", "."],
+                        ],
+                        "period": 300,
+                        "stat": "Sum",
+                        "region": AWS_REGION,
+                        "title": "SQS Queue Metrics",
+                    },
+                },
+            ]
+        }
+    ),
+)
+
+# Create CloudWatch Alarms
+cpu_alarm = aws.cloudwatch.MetricAlarm(
+    "api-high-cpu",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="CPUUtilization",
+    namespace="AWS/ECS",
+    period=300,
+    statistic="Average",
+    threshold=80.0,
+    alarm_description="This metric monitors ecs cpu utilization",
+    dimensions={
+        "ServiceName": api_svc.name,
+        "ClusterName": cluster.name,
+    },
+)
+
+memory_alarm = aws.cloudwatch.MetricAlarm(
+    "api-high-memory",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="MemoryUtilization",
+    namespace="AWS/ECS",
+    period=300,
+    statistic="Average",
+    threshold=80.0,
+    alarm_description="This metric monitors ecs memory utilization",
+    dimensions={
+        "ServiceName": api_svc.name,
+        "ClusterName": cluster.name,
+    },
+)
+
+queue_alarm = aws.cloudwatch.MetricAlarm(
+    "api-high-queue-depth",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="ApproximateNumberOfVisibleMessages",
+    namespace="AWS/SQS",
+    period=300,
+    statistic="Average",
+    threshold=20.0,
+    alarm_description="This metric monitors sqs queue depth",
+    dimensions={
+        "QueueName": queue.name,
+    },
+)
+
+pulumi.export("ssl_cert_arn", ssl_cert.arn)
+pulumi.export("dashboard_name", dashboard.dashboard_name)
 pulumi.export("alb_dns", lb.dns_name)
 pulumi.export("alb_name", lb.name)
 pulumi.export("queue_url", queue.url)

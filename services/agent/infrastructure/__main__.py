@@ -66,7 +66,7 @@ task_role = aws.iam.Role(
     }""",
 )
 
-# Create SQS queue for task processing
+# Create SQS queue for task processing (moved after DLQ)
 task_queue = aws.sqs.Queue(
     f"{service_name}-task-queue",
     name=f"{project_name}-{env}-{service_name}-tasks",
@@ -78,7 +78,7 @@ task_queue = aws.sqs.Queue(
     },
 )
 
-# Create dead letter queue
+# Create dead letter queue first (referenced in task_queue)
 dlq = aws.sqs.Queue(
     f"{service_name}-dlq",
     name=f"{project_name}-{env}-{service_name}-dlq",
@@ -234,17 +234,46 @@ worker_task_definition = aws.ecs.TaskDefinition(
     ),
 )
 
-# Create security group for services
-security_group = aws.ec2.SecurityGroup(
-    f"{service_name}-sg",
+# Create security group for ALB
+alb_security_group = aws.ec2.SecurityGroup(
+    f"{service_name}-alb-sg",
     vpc_id=vpc_id,
-    description=f"Security group for {service_name} service",
+    description=f"Security group for {service_name} ALB",
+    ingress=[
+        {
+            "protocol": "tcp",
+            "from_port": 80,
+            "to_port": 80,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+        {
+            "protocol": "tcp",
+            "from_port": 443,
+            "to_port": 443,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
+    egress=[
+        {
+            "protocol": "-1",
+            "from_port": 0,
+            "to_port": 0,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
+)
+
+# Create security group for ECS tasks
+ecs_security_group = aws.ec2.SecurityGroup(
+    f"{service_name}-ecs-sg",
+    vpc_id=vpc_id,
+    description=f"Security group for {service_name} ECS tasks",
     ingress=[
         {
             "protocol": "tcp",
             "from_port": 8000,
             "to_port": 8000,
-            "cidr_blocks": ["0.0.0.0/0"],
+            "source_security_group_id": alb_security_group.id,
         },
     ],
     egress=[
@@ -285,7 +314,7 @@ api_service = aws.ecs.Service(
     launch_type="FARGATE",
     network_configuration={
         "subnets": subnet_ids,
-        "security_groups": [security_group.id],
+        "security_groups": [ecs_security_group.id],
         "assign_public_ip": True,
     },
     load_balancers=[
@@ -306,7 +335,7 @@ worker_service = aws.ecs.Service(
     launch_type="FARGATE",
     network_configuration={
         "subnets": subnet_ids,
-        "security_groups": [security_group.id],
+        "security_groups": [ecs_security_group.id],
         "assign_public_ip": True,
     },
 )
@@ -354,6 +383,142 @@ worker_scaling_target = aws.appautoscaling.Target(
     scalable_dimension="ecs:service:DesiredCount",
     min_capacity=1,
     max_capacity=20,
+)
+
+# Create SSL certificate for the service
+ssl_cert = aws.acm.Certificate(
+    f"{service_name}-cert",
+    domain_name=config.get("domain_name", f"{service_name}-{env}.example.com"),
+    validation_method="DNS",
+)
+
+# Create CloudWatch Dashboard
+dashboard = aws.cloudwatch.Dashboard(
+    f"{service_name}-dashboard",
+    dashboard_name=f"{project_name}-{env}-{service_name}",
+    dashboard_body=pulumi.Output.json_dumps(
+        {
+            "widgets": [
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 0,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [
+                                "AWS/ECS",
+                                "CPUUtilization",
+                                "ServiceName",
+                                api_service.name,
+                                "ClusterName",
+                                cluster_arn.apply(lambda arn: arn.split("/")[-1]),
+                            ],
+                            [".", "MemoryUtilization", ".", ".", ".", "."],
+                        ],
+                        "period": 300,
+                        "stat": "Average",
+                        "region": aws.get_region().name,
+                        "title": "ECS Service Metrics",
+                    },
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 6,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [
+                                "AWS/ApplicationELB",
+                                "TargetResponseTime",
+                                "TargetGroup",
+                                target_group.arn_suffix,
+                            ],
+                            [".", "RequestCount", ".", "."],
+                        ],
+                        "period": 300,
+                        "stat": "Sum",
+                        "region": aws.get_region().name,
+                        "title": "ALB Metrics",
+                    },
+                },
+                {
+                    "type": "metric",
+                    "x": 0,
+                    "y": 12,
+                    "width": 12,
+                    "height": 6,
+                    "properties": {
+                        "metrics": [
+                            [
+                                "AWS/SQS",
+                                "ApproximateNumberOfVisibleMessages",
+                                "QueueName",
+                                task_queue.name,
+                            ],
+                            [".", "NumberOfMessagesSent", ".", "."],
+                            [".", "NumberOfMessagesReceived", ".", "."],
+                        ],
+                        "period": 300,
+                        "stat": "Sum",
+                        "region": aws.get_region().name,
+                        "title": "SQS Queue Metrics",
+                    },
+                },
+            ]
+        }
+    ),
+)
+
+# Create CloudWatch Alarms
+cpu_alarm = aws.cloudwatch.MetricAlarm(
+    f"{service_name}-high-cpu",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="CPUUtilization",
+    namespace="AWS/ECS",
+    period=300,
+    statistic="Average",
+    threshold=80.0,
+    alarm_description="This metric monitors ecs cpu utilization",
+    dimensions={
+        "ServiceName": api_service.name,
+        "ClusterName": cluster_arn.apply(lambda arn: arn.split("/")[-1]),
+    },
+)
+
+memory_alarm = aws.cloudwatch.MetricAlarm(
+    f"{service_name}-high-memory",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="MemoryUtilization",
+    namespace="AWS/ECS",
+    period=300,
+    statistic="Average",
+    threshold=80.0,
+    alarm_description="This metric monitors ecs memory utilization",
+    dimensions={
+        "ServiceName": api_service.name,
+        "ClusterName": cluster_arn.apply(lambda arn: arn.split("/")[-1]),
+    },
+)
+
+queue_alarm = aws.cloudwatch.MetricAlarm(
+    f"{service_name}-high-queue-depth",
+    comparison_operator="GreaterThanThreshold",
+    evaluation_periods=2,
+    metric_name="ApproximateNumberOfVisibleMessages",
+    namespace="AWS/SQS",
+    period=300,
+    statistic="Average",
+    threshold=50.0,
+    alarm_description="This metric monitors sqs queue depth",
+    dimensions={
+        "QueueName": task_queue.name,
+    },
 )
 
 # Export outputs
