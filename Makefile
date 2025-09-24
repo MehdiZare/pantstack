@@ -6,7 +6,7 @@
 	test-coverage test-coverage-service test-coverage-html test-watch up down dev-up dev-down package mod mod-s locks pre-commit-install bootstrap \
 	stack-init stack-up stack-destroy stack-preview stack-outputs \
 	stack-verify verify-dev verify-prod seed-stacks esc-init esc-attach publish-template create-project gha-ci gha-deploy gh-new-branch gh-open-pr \
-	gh-new-service-pr clean-test-services cleanup-template init-project
+	gh-new-service-pr gh-new-module-pr clean-test-services cleanup-template init-project
 
 help: ## Show this help message
 	@echo "Pantstack Monorepo Commands:"
@@ -410,6 +410,19 @@ gh-new-service-pr: ## Create service PR (e.g., make gh-new-service-pr S=orders)
 	git commit -m "feat($(S)): scaffold service"; \
 	git push -u origin $$b; \
 	gh pr create --base dev --head $$b --title "feat($(S)): scaffold service" --body "Scaffold $(S) service via template script."
+
+gh-new-module-pr: ## Create module PR (e.g., make gh-new-module-pr S=auth M=permissions)
+	@if [ -z "$(S)" ] || [ -z "$(M)" ]; then \
+		echo "Error: Service and module names required. Usage: make gh-new-module-pr S=auth M=permissions"; \
+		exit 1; \
+	fi
+	@b=$${B:-feature/add-$(S)-$(M)-module}; \
+	git checkout -b $$b; \
+	./scripts/new_module.sh $(S) $(M); \
+	git add -A; \
+	git commit -m "feat($(S)): add $(M) module"; \
+	git push -u origin $$b; \
+	gh pr create --base dev --head $$b --title "feat($(S)): add $(M) module" --body "Add $(M) module to $(S) service via module generator."
 
 # Test Cleanup
 clean-test-services: ## Clean any leftover test services

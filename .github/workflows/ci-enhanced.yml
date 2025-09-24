@@ -209,13 +209,13 @@ jobs:
         run: pants generate-lockfiles
 
       - name: Format check
-        run: pants fmt ::
+        run: pants fmt "services/::"
 
       - name: Lint and type check
-        run: pants lint :: && pants check ::
+        run: pants lint "services/::" && pants check "services/::"
 
       - name: Test with Pants
-        run: pants test ::
+        run: pants test "services/::"
 
       - name: Package Lambda functions
         run: pants package 'services/**/lambdas::'

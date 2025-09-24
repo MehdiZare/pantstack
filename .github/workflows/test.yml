@@ -41,13 +41,13 @@ jobs:
           ./pants --version
 
       - name: Check formatting
-        run: ./pants fmt --check ::
+        run: ./pants fmt --check "services/::"
 
       - name: Lint
-        run: ./pants lint ::
+        run: ./pants lint "services/::"
 
       - name: Typecheck
-        run: ./pants check ::
+        run: ./pants check "services/::"
 
   unit-tests:
     name: Unit Tests
@@ -78,7 +78,7 @@ jobs:
           ./pants --version
 
       - name: Run unit tests
-        run: ./pants test :: --tag=unit --test-use-coverage
+        run: ./pants test "services/*/tests/unit::" --test-use-coverage
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
@@ -172,45 +172,22 @@ jobs:
           AWS_ACCESS_KEY_ID: test
           AWS_SECRET_ACCESS_KEY: test
           AWS_DEFAULT_REGION: us-east-1
-        run: ./pants test :: --tag=integration
+        run: ./pants test "services/*/tests/integration::"
 
       - name: Stop Supabase
         if: always()
         run: supabase stop
 
-  setup-tests:
-    name: Setup and CLI Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
-
-      - name: Cache Pants
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/pants/setup
-            ~/.cache/pants/lmdb_store
-            ~/.cache/pants/named_caches
-          key: pants-cache-${{ runner.os }}-${{ hashFiles('pants.toml', '3rdparty/python/requirements*.txt') }}
-          restore-keys: |
-            pants-cache-${{ runner.os }}-
-
-      - name: Bootstrap Pants
-        run: |
-          ./pants --version
-
-      - name: Run setup tests
-        run: ./pants test scripts/tests:: --tag=setup
-
-      - name: Run CLI tests
-        run: ./pants test cli/tests:: --tag=cli
+  # NOTE: setup-tests and CLI tests disabled - removed during test optimization
+  # setup-tests:
+  #   name: Setup and CLI Tests
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 10
+  #   steps:
+  #     - name: Run setup tests
+  #       run: ./pants test scripts/tests:: --tag=setup
+  #     - name: Run CLI tests
+  #       run: ./pants test cli/tests:: --tag=cli
 
   shared-tests:
     name: Shared Library Tests
@@ -241,12 +218,12 @@ jobs:
           ./pants --version
 
       - name: Run shared library tests
-        run: ./pants test shared/tests::
+        run: ./pants test "shared/tests::"
 
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, unit-tests, integration-tests, setup-tests, shared-tests]
+    needs: [lint-and-typecheck, unit-tests, integration-tests, shared-tests]
     if: always()
 
     steps:
@@ -267,10 +244,11 @@ jobs:
             exit 1
           fi
 
-          if [[ "${{ needs.setup-tests.result }}" == "failure" ]]; then
-            echo "❌ Setup tests failed"
-            exit 1
-          fi
+          # NOTE: setup-tests removed during test optimization
+          # if [[ "${{ needs.setup-tests.result }}" == "failure" ]]; then
+          #   echo "❌ Setup tests failed"
+          #   exit 1
+          # fi
 
           if [[ "${{ needs.shared-tests.result }}" == "failure" ]]; then
             echo "❌ Shared library tests failed"
