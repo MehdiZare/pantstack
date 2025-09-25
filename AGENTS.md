@@ -1,6 +1,6 @@
 # AGENTS Playbook
 
-This repository is a Python 3.12 monorepo template scaffolded for fast service/module development with Pants, Pulumi, and reusable building blocks. Agents working in this repo must follow the conventions below to keep code consistent and CI green.
+This repository is a Python 3.11+ monorepo template scaffolded for fast service/module development with Pants, Pulumi, and reusable building blocks. Agents working in this repo must follow the conventions below to keep code consistent and CI green.
 
 ## Layout Overview
 - Services: `services/<name>`

@@ -174,14 +174,14 @@ args = ["-i", "2", "-ci"]
 
 #### Module BUILD
 ```python
-# modules/api/BUILD
+# services/api/BUILD
 python_sources(
     name="lib",
     sources=["backend/**/*.py"],
     resolve="api_core",
     dependencies=[
         "stack/libs/common",
-        "modules/auth/backend/public",
+        "services/auth/backend/public",
     ],
 )
 
@@ -245,7 +245,7 @@ config:
 ### Stack Configuration (Python)
 
 ```python
-# modules/api/infrastructure/__main__.py
+# services/api/infrastructure/__main__.py
 import pulumi
 from pulumi import Config
 
@@ -279,7 +279,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: modules/api/Dockerfile
+      dockerfile: services/api/Dockerfile
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
     image: pantstack/api:local
@@ -292,7 +292,7 @@ services:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-      - ./modules/api:/app
+      - ./services/api:/app
     depends_on:
       - postgres
       - redis
@@ -303,7 +303,7 @@ services:
   admin:
     build:
       context: .
-      dockerfile: modules/admin/Dockerfile
+      dockerfile: services/admin/Dockerfile
     image: pantstack/admin:local
     container_name: pantstack_admin
     ports:

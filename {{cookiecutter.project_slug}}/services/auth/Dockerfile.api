@@ -1,0 +1,14 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000
+
+WORKDIR /app
+
+# Pants provides the pex artifact from the dependency in the build context at this path
+COPY services.auth/auth_api_pex.pex /app/app.pex
+
+EXPOSE 8000
+
+ENTRYPOINT ["python","/app/app.pex"]

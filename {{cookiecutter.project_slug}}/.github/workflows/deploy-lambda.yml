@@ -1,0 +1,158 @@
+name: Deploy Lambda Functions
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service name (e.g., auth)'
+        required: true
+        type: choice
+        options:
+          - auth
+          - payments
+          - notifications
+      function:
+        description: 'Lambda function name (e.g., verify_token, or "all" for all functions)'
+        required: true
+        default: 'all'
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+jobs:
+  deploy-lambda:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Pants
+        uses: pantsbuild/actions/init-pants@v10
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Generate lockfiles
+        run: |
+          pants generate-lockfiles --resolve=${{ github.event.inputs.service }}_lambda
+
+      - name: Package Lambda functions
+        id: package
+        run: |
+          SERVICE=${{ github.event.inputs.service }}
+          FUNCTION=${{ github.event.inputs.function }}
+
+          if [ "$FUNCTION" == "all" ]; then
+            echo "Packaging all Lambda functions for $SERVICE"
+            pants package "services/$SERVICE/src/lambdas::"
+          else
+            echo "Packaging Lambda function: $FUNCTION"
+            pants package "services/$SERVICE/src/lambdas:${FUNCTION}_zip"
+          fi
+
+          # List packaged artifacts
+          ls -la dist/
+
+      - name: Deploy to Lambda
+        env:
+          ENV: ${{ github.event.inputs.environment }}
+          SERVICE: ${{ github.event.inputs.service }}
+          FUNCTION: ${{ github.event.inputs.function }}
+        run: |
+          # Deploy Lambda functions using AWS CLI
+          for zip_file in dist/*.zip; do
+            if [ -f "$zip_file" ]; then
+              function_name=$(basename "$zip_file" .zip)
+              # Remove _zip suffix if present
+              function_name=${function_name%_zip}
+
+              # Construct full Lambda function name
+              lambda_name="${SERVICE}-${function_name}-${ENV}"
+
+              echo "Deploying $lambda_name from $zip_file"
+
+              # Check if function exists
+              if aws lambda get-function --function-name "$lambda_name" 2>/dev/null; then
+                # Update existing function
+                aws lambda update-function-code \
+                  --function-name "$lambda_name" \
+                  --zip-file "fileb://$zip_file" \
+                  --publish
+
+                echo "Updated Lambda function: $lambda_name"
+              else
+                echo "Lambda function $lambda_name does not exist. Skipping update."
+                echo "Use Pulumi to create the function first."
+              fi
+            fi
+          done
+
+      - name: Deploy Lambda layer
+        if: github.event.inputs.function == 'all'
+        env:
+          ENV: ${{ github.event.inputs.environment }}
+          SERVICE: ${{ github.event.inputs.service }}
+        run: |
+          # Check if layer archive exists
+          layer_file="dist/${SERVICE}_lambda_layer.zip"
+
+          if [ -f "$layer_file" ]; then
+            layer_name="${SERVICE}-layer-${ENV}"
+
+            echo "Publishing Lambda layer: $layer_name"
+
+            # Publish new layer version
+            aws lambda publish-layer-version \
+              --layer-name "$layer_name" \
+              --zip-file "fileb://$layer_file" \
+              --compatible-runtimes python3.11 \
+              --description "Shared dependencies for $SERVICE Lambda functions"
+          fi
+
+      - name: Update function aliases
+        if: github.event.inputs.environment == 'prod'
+        env:
+          SERVICE: ${{ github.event.inputs.service }}
+        run: |
+          # Update PROD alias to latest version for production deployments
+          for zip_file in dist/*.zip; do
+            if [ -f "$zip_file" ]; then
+              function_name=$(basename "$zip_file" .zip)
+              function_name=${function_name%_zip}
+              lambda_name="${SERVICE}-${function_name}-prod"
+
+              # Get latest version
+              VERSION=$(aws lambda get-function --function-name "$lambda_name" \
+                --query 'Configuration.Version' --output text 2>/dev/null || echo "")
+
+              if [ ! -z "$VERSION" ]; then
+                # Create or update alias
+                aws lambda create-alias \
+                  --function-name "$lambda_name" \
+                  --name "PROD" \
+                  --function-version "$VERSION" \
+                  --description "Production version" 2>/dev/null || \
+                aws lambda update-alias \
+                  --function-name "$lambda_name" \
+                  --name "PROD" \
+                  --function-version "$VERSION"
+              fi
+            fi
+          done

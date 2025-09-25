@@ -1,0 +1,77 @@
+[run]
+# Source directories to include
+source = services/
+
+# Exclude patterns from coverage
+omit =
+    # Build and configuration files
+    */BUILD
+    */__pycache__/*
+    */.*
+
+    # Generated and infrastructure files
+    */infrastructure/*
+    */infra/*
+    */entry_points/*
+
+    # Test files themselves
+    */tests/*
+    */test_*.py
+    */*_test.py
+
+    # Configuration and setup files
+    */conftest.py
+    */settings.py
+    */config.py
+
+    # Module init files (usually just imports)
+    */__init__.py
+
+    # Scripts and utilities
+    */scripts/*
+    */utils/*
+    */cli/*
+
+    # Third-party and vendor code
+    */3rdparty/*
+    */vendor/*
+
+    # Template and generated code
+    */cookiecutter/*
+    # Removed invalid pattern that breaks Jinja2
+
+[report]
+# Reporting options
+show_missing = true
+skip_covered = false
+precision = 1
+
+# Fail if coverage is below this threshold
+fail_under = 70
+
+# Lines to exclude from coverage
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    def __repr__
+    if self\.debug
+
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+
+    # Don't complain about abstract methods
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov
+title = Pantstack Service Coverage Report
+
+[xml]
+output = coverage.xml

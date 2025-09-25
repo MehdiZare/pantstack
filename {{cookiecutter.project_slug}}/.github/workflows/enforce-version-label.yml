@@ -1,0 +1,38 @@
+name: enforce-version-label
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, labeled, unlabeled, synchronize]
+
+jobs:
+  check-label:
+    runs-on: ubuntu-latest
+    # Only enforce in the template repository for dev->main PRs
+    if: ${{ github.repository == (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') && github.head_ref == 'dev' }}
+    steps:
+      - name: Check for version label
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const versionLabels = labels.filter(l =>
+              ['release:major', 'release:minor', 'release:patch', 'release:skip'].includes(l)
+            );
+
+            if (versionLabels.length === 0) {
+              core.setFailed(`❌ PR from dev to main requires exactly ONE version label.
+
+              Please add one of these labels:
+              • release:major - Breaking changes (v1.0.0 → v2.0.0)
+              • release:minor - New features (v1.0.0 → v1.1.0)
+              • release:patch - Bug fixes (v1.0.0 → v1.0.1)
+              • release:skip - No version bump needed (docs, CI, etc.)
+
+              This ensures all template changes are properly versioned.`);
+            } else if (versionLabels.length > 1) {
+              core.setFailed(`❌ Multiple version labels found: ${versionLabels.join(', ')}
+
+              Please use exactly ONE version label.`);
+            } else {
+              console.log(`✅ Version label found: ${versionLabels[0]}`);
+            }

@@ -1,9 +1,9 @@
 {
-  "project_slug": "mono-template",
-  "github_owner": "your-gh-user-or-org",
+  "project_slug": "writer",
+  "github_owner": "MehdiZare",
   "github_repo": "{{ cookiecutter.project_slug }}",
   "github_visibility": ["private", "public"],
   "aws_account_id": "123456789012",
-  "aws_region": "eu-west-2",
-  "pulumi_org": "your-pulumi-org"
+  "aws_region": "us-east-1",
+  "pulumi_org": "{{ cookiecutter.github_owner }}"
 }

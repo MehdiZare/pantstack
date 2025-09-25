@@ -1,0 +1,47 @@
+# Test environment configuration
+# Used for running tests locally and in CI
+
+environment: test
+debug: true
+log_level: WARNING  # Less verbose for tests
+
+# Test secret
+secret_key: test-secret-key
+
+# Test database (in-memory or test container)
+database:
+  supabase_url: http://localhost:54321
+  supabase_anon_key: test-anon-key
+
+# Redis for tests
+redis:
+  host: localhost
+  port: 6379
+  db: 1  # Different DB for tests
+
+# Celery for tests
+celery:
+  broker_url: redis://localhost:6379/1
+  result_backend: redis://localhost:6379/1
+  task_always_eager: true  # Execute tasks synchronously in tests
+
+# AWS LocalStack for tests
+aws:
+  localstack_enabled: true
+  localstack_endpoint: http://localhost:4566
+  s3_bucket: pantstack-test
+  sqs_queue_url: http://localhost:4566/000000000000/pantstack-test
+  eventbridge_bus: pantstack-events-test
+
+# Test-specific settings
+auth_module:
+  access_token_expire_minutes: 5  # Short for tests
+  refresh_token_expire_days: 1
+  min_password_length: 4  # Minimal for tests
+  require_uppercase: false
+  require_lowercase: false
+  require_digit: false
+  require_special: false
+  require_email_verification: false
+  allow_registration: true
+  max_login_attempts: 100  # No rate limiting in tests

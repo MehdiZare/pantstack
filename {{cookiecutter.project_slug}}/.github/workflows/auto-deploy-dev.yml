@@ -1,0 +1,145 @@
+name: auto-deploy-dev
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Skip deployment in the template repository
+    if: ${{ github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.12' }
+      - uses: pantsbuild/actions/init-pants@v10
+      - name: Detect changed services
+        id: mods
+        run: |
+          # Use environment variables to safely handle refs
+          BEFORE_SHA="${{ github.event.before }}"
+          CURRENT_SHA="${{ github.sha }}"
+
+          # Check if before SHA is valid (not 0000000 for new branches)
+          if [[ "$BEFORE_SHA" == "0000000000000000000000000000000000000000" ]] || [[ -z "$BEFORE_SHA" ]]; then
+            echo "New branch or initial commit, checking all services"
+            CHANGED=$(git ls-files)
+          else
+            CHANGED=$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" 2>/dev/null || git ls-files)
+          fi
+
+          SRVS=$(echo "$CHANGED" | sed -n 's#^services/\([^/]*\)/.*#\1#p' | sort -u)
+          echo "mods=$(echo $SRVS | xargs)" >> $GITHUB_OUTPUT
+          echo "Changed modules: $(echo $SRVS | xargs)"
+      - name: Configure AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: aws sts get-caller-identity
+      - name: Version (semantic-release prerelease on dev)
+        id: semver
+        uses: cycjimmy/semantic-release-action@v5
+        with:
+          extra_plugins: |
+            @semantic-release/changelog
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & publish images
+        if: steps.mods.outputs.mods != ''
+        run: |
+          pants generate-lockfiles
+          for m in ${{ steps.mods.outputs.mods }}; do pants package services/$m:*image; done
+          export AWS_ACCOUNT_ID=${{ vars.AWS_ACCOUNT_ID }}
+          export AWS_REGION=${{ vars.AWS_REGION }}
+          export PROJECT_SLUG=${{ vars.PROJECT_SLUG }}
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+          for img in dist/*.image.tar; do docker load -i "$img"; done
+          BRANCH=${GITHUB_REF_NAME}
+          SHORT_SHA=${GITHUB_SHA::7}
+          VERSION=${{ steps.semver.outputs.new_release_version }}
+          if [ -z "$VERSION" ]; then VERSION=$(git describe --tags --abbrev=0 || echo dev-$(date +%s)); fi
+          docker images --format '{{.Repository}}:{{.Tag}}' | while read -r local; do
+            name=$(echo "$local" | awk -F ':' '{print $1}')
+            mod=$(echo "$name" | sed -n 's#.*services\.\([^/]*\)\..*#\1#p')
+            [ -z "$mod" ] && mod="app"
+            tag="${mod}-${BRANCH}-${SHORT_SHA}"
+            if echo "$name" | grep -q "worker"; then
+              tag="${mod}-worker-${BRANCH}-${SHORT_SHA}"
+            fi
+            ecr="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${tag}"
+            docker tag "$local" "$ecr"
+            docker push "$ecr"
+            # Also push semantic version tag
+            semtag="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${mod}-v$VERSION"
+            if echo "$name" | grep -q "worker"; then
+              semtag="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$PROJECT_SLUG:${mod}-worker-v$VERSION"
+            fi
+            docker tag "$local" "$semtag"
+            docker push "$semtag"
+          done
+      - name: Install Pulumi CLI
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> $GITHUB_PATH
+          sudo apt-get update && sudo apt-get install -y jq
+      - name: Verify deployed modules (test)
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+        run: |
+          chmod +x scripts/verify_http.sh
+          for m in ${{ steps.mods.outputs.mods }}; do
+            base=$(pulumi -C services/$m/infra/pulumi stack output alb_dns --stack "$PULUMI_ORG/$m/test")
+            if [ -z "$base" ]; then echo "No alb_dns output for $m"; exit 1; fi
+            ./scripts/verify_http.sh "http://$base"
+          done
+      - name: Summary with endpoints (test)
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          {
+            echo "# Deployed to test"
+            echo "Modules: ${{ steps.mods.outputs.mods }}"
+            for m in ${{ steps.mods.outputs.mods }}; do
+              base=$(pulumi -C services/$m/infra/pulumi stack output alb_dns --stack "$PULUMI_ORG/$m/test" 2>/dev/null)
+              qurl=$(pulumi -C services/$m/infra/pulumi stack output queue_url --stack "$PULUMI_ORG/$m/test" 2>/dev/null || true)
+              sbkt=$(pulumi -C services/$m/infra/pulumi stack output status_bucket --stack "$PULUMI_ORG/$m/test" 2>/dev/null || true)
+              albname=$(pulumi -C services/$m/infra/pulumi stack output alb_name --stack "$PULUMI_ORG/$m/test" 2>/dev/null || true)
+              echo "\n## $m"
+              echo "- Pulumi stack: https://app.pulumi.com/$PULUMI_ORG/$m/test"
+              echo "- Endpoint: http://$base (health: http://$base/healthz)"
+              if [ -n "$albname" ]; then
+                echo "- AWS ALB: https://console.aws.amazon.com/ec2/v2/home?region=$AWS_REGION#LoadBalancers:search=$albname"
+              fi
+              QURL="$qurl"; enc=$(python3 -c "import os,urllib.parse; print(urllib.parse.quote(os.environ['QURL']))"); echo "- AWS SQS: https://console.aws.amazon.com/sqs/v2/home?region=$AWS_REGION#/queues/$enc"
+              echo "- AWS S3: https://s3.console.aws.amazon.com/s3/buckets/$sbkt?region=$AWS_REGION"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy changed modules (test)
+        if: steps.mods.outputs.mods != ''
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          PROJECT_SLUG: ${{ vars.PROJECT_SLUG }}
+          PULUMI_ORG: ${{ vars.PULUMI_ORG }}
+          GITHUB_REF_NAME: dev
+        run: |
+          for m in ${{ steps.mods.outputs.mods }}; do
+            pulumi stack select "$PULUMI_ORG/$m/test" || pulumi stack init "$PULUMI_ORG/$m/test"
+            pulumi up -y -C services/$m/infra/pulumi
+          done
