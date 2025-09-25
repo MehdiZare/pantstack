@@ -117,12 +117,12 @@ jobs:
   check-template:
     runs-on: ubuntu-latest
     outputs:
-      is_template: ${{ steps.check.outputs.is_template }}
+      is_template: ${% raw %}{{ steps.check.outputs.is_template }}{% endraw %}
     steps:
       - id: check
         run: |
           # Skip if this is the template repository
-          if [[ "${{ github.repository }}" == "MehdiZare/pantstack" ]]; then
+          if [[ "${% raw %}{{ github.repository }}{% endraw %}" == "MehdiZare/pantstack" ]]; then
             echo "is_template=true" >> $GITHUB_OUTPUT
           else
             echo "is_template=false" >> $GITHUB_OUTPUT
