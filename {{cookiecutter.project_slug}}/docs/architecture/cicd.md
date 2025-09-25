@@ -114,8 +114,8 @@ Uses GitHub OIDC provider for AWS access:
 ```yaml
 - uses: aws-actions/configure-aws-credentials@v4
   with:
-    role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
-    aws-region: ${{ secrets.AWS_REGION }}
+    role-to-assume: arn:aws:iam::${% raw %}{{ secrets.AWS_ACCOUNT_ID }}{% endraw %}:role/github-actions-role
+    aws-region: ${% raw %}{{ secrets.AWS_REGION }}{% endraw %}
 ```
 
 ## CI Pipeline Details

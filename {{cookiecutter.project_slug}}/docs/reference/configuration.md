@@ -394,9 +394,9 @@ env:
   PYTHON_VERSION: '3.12'
   PANTS_VERSION: '2.28.0'
   AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-  PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+  ECR_REGISTRY: ${% raw %}{{ secrets.ECR_REGISTRY }}{% endraw %}
+  ECR_REPOSITORY: ${% raw %}{{ secrets.ECR_REPOSITORY }}{% endraw %}
+  PULUMI_ACCESS_TOKEN: ${% raw %}{{ secrets.PULUMI_ACCESS_TOKEN }}{% endraw %}
 ```
 
 ### Repository Secrets

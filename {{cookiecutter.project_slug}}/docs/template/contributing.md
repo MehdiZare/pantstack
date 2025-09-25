@@ -176,7 +176,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pants
-          key: ${{ runner.os }}-pants-${{ hashFiles('pants.toml') }}
+          key: ${% raw %}{{ runner.os }}-pants-{{ hashFiles('pants.toml') }}{% endraw %}
 ```
 
 ### Commit Messages
