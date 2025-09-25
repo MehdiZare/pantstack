@@ -8,7 +8,7 @@ from dependency_injector.wiring import Provide, inject
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
-from ...domain.services import AuthenticationService, TokenService, UserService
+# Removed unused imports - they are now handled by dependency injection in container
 from ...lib.core.container import ApplicationContainer, get_container
 
 

@@ -28,7 +28,9 @@
       "Bash(gh pr list:*)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(echo \"Command completed with status $?\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

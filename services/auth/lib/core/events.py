@@ -187,7 +187,7 @@ class EventBackbone:
             event: Event to publish
         """
         try:
-            channel = f"events:{event.event_type.value}"
+            channel = f"events: {event.event_type.value}"
             self.redis.publish(channel, event.to_json())
             print(f"📢 Published to Redis: {event.event_type.value}")
         except Exception as e:

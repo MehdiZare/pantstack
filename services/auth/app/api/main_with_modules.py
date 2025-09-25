@@ -4,10 +4,8 @@ Example of how to use module discovery in a service API.
 """
 
 from contextlib import asynccontextmanager
-from typing import Dict
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 
 from shared.core.config import BaseConfig
 from shared.core.module_discovery import ModuleDiscovery
