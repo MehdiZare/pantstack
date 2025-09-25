@@ -1,0 +1,138 @@
+version: "3.9"
+
+services:
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: entry_points/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - LOCALSTACK=true
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - REDIS_HOST=redis
+      - DB_SUPABASE_URL=${DB_SUPABASE_URL:-http://host.docker.internal:54321}
+      - DB_SUPABASE_ANON_KEY=${DB_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-development-secret-key}
+    depends_on:
+      - redis
+      - localstack
+    volumes:
+      - ./:/app  # For development hot reload
+      - ./config:/app/config:ro  # Config files
+    networks:
+      - pantstack
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: .
+      dockerfile: entry_points/celery_worker/Dockerfile
+    environment:
+      - ENVIRONMENT=development
+      - LOCALSTACK=true
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - REDIS_HOST=redis
+      - DB_SUPABASE_URL=${DB_SUPABASE_URL:-http://host.docker.internal:54321}
+      - DB_SUPABASE_ANON_KEY=${DB_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - localstack
+    volumes:
+      - ./:/app  # For development hot reload
+      - ./config:/app/config:ro  # Config files
+    networks:
+      - pantstack
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Celery Beat Scheduler (for periodic tasks)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: entry_points/celery_worker/Dockerfile
+    command: celery -A entry_points.celery_worker.app beat --loglevel=info
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_HOST=redis
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - ./:/app
+    networks:
+      - pantstack
+
+  # Flower for Celery monitoring
+  flower:
+    image: mher/flower
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - FLOWER_PORT=5555
+    depends_on:
+      - redis
+      - celery_worker
+    networks:
+      - pantstack
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pantstack
+
+  # Note: PostgreSQL is provided by Supabase local development
+  # Run 'supabase start' to start all Supabase services
+  # This includes PostgreSQL, Auth, Storage, Realtime, etc.
+
+  # LocalStack for AWS services (development only)
+  localstack:
+    image: localstack/localstack:3.7
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services
+    environment:
+      - SERVICES=s3,sqs,dynamodb,lambda,events,ssm,ses,logs,iam
+      - DEBUG=${DEBUG:-1}
+      - EAGER_SERVICE_LOADING=1
+      - LAMBDA_DOCKER_NETWORK=pantstack
+      - PERSISTENCE=1
+      - SNAPSHOT_SAVE_STRATEGY=ON_SHUTDOWN
+      - SNAPSHOT_LOAD_STRATEGY=ON_STARTUP
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:-}
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - "./volume/localstack:/var/lib/localstack"
+      - "./.localstack/init:/etc/localstack/init:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pantstack
+
+volumes:
+  redis_data:
+  localstack_data:
+
+networks:
+  pantstack:
+    driver: bridge

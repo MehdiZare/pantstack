@@ -1,0 +1,25 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203,W503
+
+import-restrictions =
+    services\.(\w+)\.app\..* -> FORBIDDEN: services\.\1\.adapters\..*
+    services\.(\w+)\.domain\..* -> FORBIDDEN: services\.\1\.(app|adapters)\..*
+    services\.(\w+)\.(?!public)\..* -> FORBIDDEN: services\.(?!\1)\w+\.(?!public).*
+
+per-file-ignores =
+    services/web/app/api/main.py: E221,E222,E231,E501,E702
+    # Black formatting conflicts - slicing with spaces
+    services/agent/app/api/main.py: E203
+    services/auth/adapters/repositories/in_memory_user_repository.py: E203
+    # Remaining test file issues - TODO: Clean up unused variables in tests
+    cli/tests/*.py: F401,F841
+    tests/**/*.py: F401,F841
+    scripts/tests/*.py: F401,F841
+    shared/tests/*.py: F401,F841
+    # Service files with remaining issues
+    services/auth/lib/**/*.py: F401
+    services/auth/tests/**/*.py: F401
+    entry_points/**/*.py: F401,F841
+    shared/core/*.py: F401,F841
+    stack/infra/**/*.py: F401

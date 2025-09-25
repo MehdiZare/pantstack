@@ -1,0 +1,1 @@
+"""API Service Adapters Layer"""

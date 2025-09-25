@@ -1,0 +1,270 @@
+name: CI Enhanced
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  # Linting and code quality
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('3rdparty/python/requirements-*.txt') }}
+
+      - name: Install linting tools
+        run: |
+          pip install ruff black mypy
+
+      - name: Run ruff
+        run: ruff check .
+
+      - name: Run black
+        run: black --check .
+
+      - name: Run mypy
+        run: mypy --ignore-missing-imports .
+
+  # Unit tests
+  test-unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r 3rdparty/python/requirements-shared.txt
+          pip install -r 3rdparty/python/requirements-web-api.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run unit tests
+        run: |
+          pytest services/*/tests/unit --cov=services --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
+
+  # Build Docker images
+  build-docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: api
+            dockerfile: entry_points/api/Dockerfile
+          - name: celery-worker
+            dockerfile: entry_points/celery_worker/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          tags: pantstack-${{ matrix.service.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          push: false
+          outputs: type=docker,dest=/tmp/${{ matrix.service.name }}.tar
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-${{ matrix.service.name }}
+          path: /tmp/${{ matrix.service.name }}.tar
+
+  # Integration tests with Docker Compose
+  test-integration:
+    needs: build-docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Docker images
+        uses: actions/download-artifact@v4
+        with:
+          pattern: docker-*
+          merge-multiple: true
+          path: /tmp
+
+      - name: Load Docker images
+        run: |
+          for img in /tmp/*.tar; do
+            docker load -i "$img"
+          done
+
+      - name: Start services
+        run: |
+          docker-compose up -d redis postgres
+          sleep 10
+
+      - name: Run API health check
+        run: |
+          docker-compose up -d api
+          sleep 10
+          curl -f http://localhost:8000/health || exit 1
+
+      - name: Run Celery worker check
+        run: |
+          docker-compose up -d celery_worker
+          sleep 10
+          docker-compose logs celery_worker
+
+      - name: Check Flower
+        run: |
+          docker-compose up -d flower
+          sleep 5
+          curl -f http://localhost:5555/api/workers || exit 1
+
+      - name: Run integration tests
+        run: |
+          docker-compose run api pytest services/*/tests/integration
+
+      - name: Cleanup
+        if: always()
+        run: docker-compose down -v
+
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit --requirement 3rdparty/python/requirements-shared.txt
+
+  # Pants build system (if configured)
+  pants-build:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('pants.toml') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pants
+            ./.pants.d
+          key: pants-${{ runner.os }}-${{ hashFiles('**/*.BUILD','pants.toml','lockfiles/*.lock') }}
+
+      - uses: pantsbuild/actions/init-pants@v10
+
+      - name: Generate lockfiles
+        run: pants generate-lockfiles
+
+      - name: Format check
+        run: pants fmt "services/::"
+
+      - name: Lint and type check
+        run: pants lint "services/::" && pants check "services/::"
+
+      - name: Test with Pants
+        run: pants test "services/::"
+
+      - name: Package Lambda functions
+        run: pants package 'services/**/lambdas::'
+
+  # Deploy to development (only on dev branch)
+  deploy-dev:
+    needs: [lint, test-unit, build-docker, test-integration]
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: development
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download Docker images
+        uses: actions/download-artifact@v4
+        with:
+          pattern: docker-*
+          merge-multiple: true
+          path: /tmp
+
+      - name: Push images to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          for img in /tmp/*.tar; do
+            docker load -i "$img"
+            service_name=$(basename "$img" .tar | sed 's/docker-//')
+            docker tag pantstack-${service_name}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPOSITORY}:${service_name}-dev-${IMAGE_TAG}
+            docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${service_name}-dev-${IMAGE_TAG}
+          done
+
+      - name: Deploy with Pulumi
+        uses: pulumi/actions@v5
+        with:
+          command: up
+          stack-name: dev
+          work-dir: platform/infra/foundation
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

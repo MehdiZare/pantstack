@@ -1,0 +1,1 @@
+"""Auth Service Adapters Layer - External integrations"""

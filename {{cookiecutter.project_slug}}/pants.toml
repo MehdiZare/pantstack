@@ -1,0 +1,59 @@
+[GLOBAL]
+pants_version = "2.32.0"
+backend_packages = [
+  "pants.backend.python",
+  "pants.backend.python.lint.black",
+  "pants.backend.python.lint.isort",
+  "pants.backend.python.lint.flake8",
+  "pants.backend.python.typecheck.mypy",
+  "pants.backend.docker",
+  "pants.backend.awslambda.python",
+  "pants.backend.python.mixed_interpreter_constraints",
+  "pants.backend.shell",
+]
+
+[python]
+interpreter_constraints = [">=3.11"]
+enable_resolves = true
+
+[python-bootstrap]
+search_path = ["<PATH>", "/opt/homebrew/opt/pyenv/versions/3.12.11/bin", "/usr/local/bin", "/opt/homebrew/bin"]
+
+[python.resolves]
+# Service resolves
+auth_core  = "lockfiles/auth_core.lock"
+auth_api   = "lockfiles/auth_api.lock"
+auth_lambda = "lockfiles/auth_lambda.lock"
+web_core   = "lockfiles/web_core.lock"
+web_api    = "lockfiles/web_api.lock"
+agent_core = "lockfiles/agent_core.lock"
+
+sample_test_core = "lockfiles/sample_test_core.lock"
+sample_test_api = "lockfiles/sample_test_api.lock"
+
+test_cleanup_core = "lockfiles/test_cleanup_core.lock"
+test_cleanup_api = "lockfiles/test_cleanup_api.lock"
+
+
+
+test_orders_core = "lockfiles/test_orders_core.lock"
+test_orders_api = "lockfiles/test_orders_api.lock"
+
+# Entry point resolves
+api_main = "lockfiles/api_main.lock"
+celery_main = "lockfiles/celery_main.lock"
+
+# Test resolves
+test = "lockfiles/test.lock"
+
+# Flake8 configuration
+# Note: Additional flake8 plugins should be added to the requirements files
+
+[source]
+root_patterns = ["/"]
+
+[mypy]
+args = ["--ignore-missing-imports"]
+
+[python-infer]
+use_rust_parser = true

@@ -30,7 +30,11 @@
       "Bash(gh run view:*)",
       "Bash(git commit:*)",
       "Bash(echo \"Command completed with status $?\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(ls:*)",
+      "Bash(awk:*)",
+      "Read(//Users/mehdi/REPOs/**)",
+      "Bash(cookiecutter:*)"
     ],
     "deny": [],
     "ask": []

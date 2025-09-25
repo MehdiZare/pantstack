@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Virtual envs
+.venv/
+.venv-*/
+
+# Pants
+.pants.d/
+.pants.workdir/
+
+# Build artifacts
+dist/
+build/
+site/
+
+# Local env
+.env
+*.env
+.dev/
+
+# Node (if any frontends later)
+node_modules/
+
+# OS files
+.DS_Store
+/.claude/
+
+# IDE
+.idea/
+.vscode/
+
+# Test artifacts
+.pids/
+TEST_RESULTS.md
+
+# Pants binary
+# /pants - commented out as the bootstrap script should be committed
