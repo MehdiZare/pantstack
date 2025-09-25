@@ -34,7 +34,9 @@
       "Bash(ls:*)",
       "Bash(awk:*)",
       "Read(//Users/mehdi/REPOs/**)",
-      "Bash(cookiecutter:*)"
+      "Bash(cookiecutter:*)",
+      "Read(//private/tmp/**)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

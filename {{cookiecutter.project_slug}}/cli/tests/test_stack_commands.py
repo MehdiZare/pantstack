@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest  # pants: no-infer-dep
 from click.testing import CliRunner  # pants: no-infer-dep
 
 
@@ -18,7 +17,7 @@ class TestStackCommands:
 
     def test_stack_deploy_command_structure(self):
         """Test stack deploy command structure."""
-        expected_params = ["service", "environment", "preview", "force"]
+        # Expected parameters: ["service", "environment", "preview", "force"]
 
         # This would test the actual CLI once implemented
         assert True  # Placeholder
@@ -83,7 +82,7 @@ class TestStackCommands:
     def test_environment_validation(self):
         """Test environment parameter validation."""
         valid_environments = ["dev", "test", "staging", "prod", "production"]
-        invalid_environments = ["", "invalid!", "prod-test", "123"]
+        # Invalid environments for validation: ["", "invalid!", "prod-test", "123"]
 
         import re
 
@@ -136,7 +135,7 @@ class TestStackCommands:
 
     def test_stack_status_check(self):
         """Test stack status checking."""
-        stack_states = ["in-progress", "succeeded", "failed", "cancelled"]
+        # Possible stack states: ["in-progress", "succeeded", "failed", "cancelled"]
 
         # Mock stack status response
         status_response = {

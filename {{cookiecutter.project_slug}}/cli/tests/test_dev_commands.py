@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pytest  # pants: no-infer-dep
 from click.testing import CliRunner  # pants: no-infer-dep
 
 
@@ -17,7 +16,7 @@ class TestDevCommands:
 
     def test_dev_start_command_structure(self):
         """Test dev start command structure."""
-        expected_params = ["services", "detach", "build"]
+        # Expected parameters: ["services", "detach", "build"]
 
         # This would test the actual CLI once implemented
         assert True  # Placeholder

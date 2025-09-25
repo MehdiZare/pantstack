@@ -2,9 +2,8 @@
 
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest  # pants: no-infer-dep
 from click.testing import CliRunner  # pants: no-infer-dep
 
 
@@ -18,7 +17,7 @@ class TestServiceCommands:
     def test_service_create_command_structure(self):
         """Test service create command structure."""
         # Test that the command interface is properly structured
-        expected_params = ["name", "template", "description"]
+        # Expected parameters: ["name", "template", "description"]
 
         # This would test the actual CLI once implemented
         assert True  # Placeholder
@@ -186,10 +185,10 @@ def create_{service_name}_infrastructure():
         task_definition="task-def",
     )
 
-    return {{
-        "service_arn": service.arn,
-        "service_name": service.name,
-    }}
+    return {
+            "service_arn": service.arn,
+            "service_name": service.name,
+        }
 '''
 
         # Verify infrastructure template structure
