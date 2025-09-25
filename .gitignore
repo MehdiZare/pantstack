@@ -38,4 +38,4 @@ node_modules/
 TEST_RESULTS.md
 
 # Pants binary
-/pants
+# /pants - commented out as the bootstrap script should be committed
