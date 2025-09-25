@@ -44,10 +44,10 @@ if ! command -v pulumi >/dev/null 2>&1; then
 fi
 python3 -m venv .venv-foundation >/dev/null 2>&1 || true
 . .venv-foundation/bin/activate
-pip -q install -r platform/infra/foundation/requirements.txt
+pip -q install -r stack/infra/foundation/requirements.txt
 
 echo "==> Initializing Pulumi stack"
-pushd platform/infra/foundation >/dev/null
+pushd stack/infra/foundation >/dev/null
 STACK_NAME="$PULUMI_ORG/${PROJECT_SLUG}-foundation"
 pulumi stack select "$STACK_NAME" || pulumi stack init "$STACK_NAME"
 

@@ -22,9 +22,9 @@ PROJECT_SLUG=${PROJECT_SLUG:-mono-template}
 AWS_REGION=${AWS_REGION:-eu-west-2}
 AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-}
 
-echo "==> Seeding module stacks in org: $PULUMI_ORG"
+echo "==> Seeding service stacks in org: $PULUMI_ORG"
 
-for infra in modules/*/infrastructure; do
+for infra in services/*/infrastructure; do
   [ -d "$infra" ] || continue
   mod=$(basename "$(dirname "$infra")")
   for env in test prod; do
