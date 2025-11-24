@@ -11,7 +11,7 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with: { python-version: '3.12' }
       - uses: actions/cache@v4
@@ -32,7 +32,7 @@ jobs:
     # Skip packaging in the template repository
     if: ${{ github.repository != (vars.TEMPLATE_REPO_SLUG != '' && vars.TEMPLATE_REPO_SLUG || 'MehdiZare/pantstack') }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with: { python-version: '3.12' }
       - uses: pantsbuild/actions/init-pants@v10
@@ -68,7 +68,7 @@ jobs:
     needs: build-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with: { python-version: '3.12' }
       - uses: pantsbuild/actions/init-pants@v10
